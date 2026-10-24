@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/common/Header';
 import { Navbar, NavTab } from './components/common/Navbar';
 import { LandingPage } from './components/landing/LandingPage';
@@ -25,9 +25,13 @@ import {
   INITIAL_EVC_VISITS,
   INITIAL_COMPLIANCE,
   INITIAL_AUDIT_LOGS,
-  INITIAL_EXPERTS
+  enrichApplicationCalculations,
+  enrichComplianceCalculations
 } from './data/mockData';
-import { Application, ApplicationStage, EVCVisit, ComplianceRecord, AuditLogItem } from './types';
+import { Application, ApplicationStage, EVCVisit, ComplianceRecord, AuditLogItem, ExpertProfile } from './types';
+import { dataService } from './services/dataService';
+import { calculateIsOverdue, calculateUrgency } from './lib/dateCalculations';
+import { calculateStageProgress } from './lib/workflow';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('landing');
@@ -35,7 +39,36 @@ export const App: React.FC = () => {
   const [evcVisits, setEvcVisits] = useState<EVCVisit[]>(getStoredEVCVisits);
   const [complianceRecords, setComplianceRecords] = useState<ComplianceRecord[]>(getStoredCompliance);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(getStoredAuditLogs);
-  const [experts] = useState(getStoredExperts);
+  const [experts, setExperts] = useState<ExpertProfile[]>(getStoredExperts);
+
+  // Initial load from Supabase backend (with graceful fallback to stored data)
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDataFromSource() {
+      try {
+        const [loadedApps, loadedComps, loadedVisits, loadedLogs, loadedExperts] = await Promise.all([
+          dataService.getApplications(),
+          dataService.getComplianceRecords(),
+          dataService.getEVCVisits(),
+          dataService.getAuditLogs(),
+          dataService.getExperts()
+        ]);
+        if (isMounted) {
+          if (loadedApps.length > 0) setApplications(loadedApps);
+          if (loadedComps.length > 0) setComplianceRecords(loadedComps);
+          if (loadedVisits.length > 0) setEvcVisits(loadedVisits);
+          if (loadedLogs.length > 0) setAuditLogs(loadedLogs);
+          if (loadedExperts.length > 0) setExperts(loadedExperts);
+        }
+      } catch (err) {
+        console.warn('Initial data load error:', err);
+      }
+    }
+    loadDataFromSource();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Modals state
   const [selectedAppForDossier, setSelectedAppForDossier] = useState<Application | null>(null);
@@ -46,14 +79,17 @@ export const App: React.FC = () => {
   const handleResetData = () => {
     if (window.confirm('Reset all demo applications and EVC records to default values?')) {
       localStorage.clear();
-      setApplications(INITIAL_APPLICATIONS);
-      saveStoredApplications(INITIAL_APPLICATIONS);
+      const freshApps = INITIAL_APPLICATIONS.map(enrichApplicationCalculations);
+      const freshComps = INITIAL_COMPLIANCE.map(enrichComplianceCalculations);
+
+      setApplications(freshApps);
+      saveStoredApplications(freshApps);
 
       setEvcVisits(INITIAL_EVC_VISITS);
       saveStoredEVCVisits(INITIAL_EVC_VISITS);
 
-      setComplianceRecords(INITIAL_COMPLIANCE);
-      saveStoredCompliance(INITIAL_COMPLIANCE);
+      setComplianceRecords(freshComps);
+      saveStoredCompliance(freshComps);
 
       setAuditLogs(INITIAL_AUDIT_LOGS);
       saveStoredAuditLogs(INITIAL_AUDIT_LOGS);
@@ -63,16 +99,19 @@ export const App: React.FC = () => {
   };
 
   // Stage update workflow (Member 1)
-  const handleUpdateStage = (appId: string, newStage: ApplicationStage, remark: string) => {
+  const handleUpdateStage = async (appId: string, newStage: ApplicationStage, remark: string) => {
     const targetApp = applications.find((a) => a.id === appId);
-    if (!targetApp) return;
+    if (!targetApp) {
+      return { success: false, error: 'Application not found' };
+    }
 
-    let newProgress = targetApp.stageProgress;
-    if (newStage === 'Scrutiny Completed') newProgress = 40;
-    else if (newStage === 'EVC Scheduled') newProgress = 65;
-    else if (newStage === 'SAC Review') newProgress = 85;
-    else if (newStage === 'Approved') newProgress = 100;
-    else if (newStage === 'Deficiency Issued') newProgress = 50;
+    // Backend stage transition validation & persistence
+    const result = await dataService.updateApplicationStage(appId, newStage, remark);
+    if (!result.success) {
+      return result;
+    }
+
+    const newProgress = result.stageProgress ?? calculateStageProgress(newStage);
 
     const updated = applications.map((app) =>
       app.id === appId
@@ -80,7 +119,8 @@ export const App: React.FC = () => {
             ...app,
             currentStage: newStage,
             stageProgress: newProgress,
-            remarks: remark
+            remarks: remark,
+            isOverdue: calculateIsOverdue(newStage, app.processingDays)
           }
         : app
     );
@@ -94,7 +134,8 @@ export const App: React.FC = () => {
         ...selectedAppForDossier,
         currentStage: newStage,
         stageProgress: newProgress,
-        remarks: remark
+        remarks: remark,
+        isOverdue: calculateIsOverdue(newStage, selectedAppForDossier.processingDays)
       });
     }
 
@@ -120,6 +161,9 @@ export const App: React.FC = () => {
     const updatedLogs = [newAuditLog, ...auditLogs];
     setAuditLogs(updatedLogs);
     saveStoredAuditLogs(updatedLogs);
+    dataService.appendAuditLog(newAuditLog);
+
+    return result;
   };
 
   // Add EVC Visit workflow (Teammate / Member 2)
@@ -129,13 +173,21 @@ export const App: React.FC = () => {
     saveStoredEVCVisits(updatedVisits);
 
     // Update corresponding application to EVC Scheduled
+    const evcScheduledProgress = calculateStageProgress('EVC Scheduled');
     const updatedApps = applications.map((app) =>
       app.applicationNumber === newVisit.applicationNumber
-        ? { ...app, currentStage: 'EVC Scheduled' as ApplicationStage, stageProgress: 65, evcAssigned: true }
+        ? {
+            ...app,
+            currentStage: 'EVC Scheduled' as ApplicationStage,
+            stageProgress: evcScheduledProgress,
+            evcAssigned: true,
+            isOverdue: calculateIsOverdue('EVC Scheduled', app.processingDays)
+          }
         : app
     );
     setApplications(updatedApps);
     saveStoredApplications(updatedApps);
+    dataService.addEVCVisit(newVisit);
 
     // Add audit log
     const auditItem: AuditLogItem = {
@@ -158,6 +210,7 @@ export const App: React.FC = () => {
     const updatedLogs = [auditItem, ...auditLogs];
     setAuditLogs(updatedLogs);
     saveStoredAuditLogs(updatedLogs);
+    dataService.appendAuditLog(auditItem);
   };
 
   // Compliance status update workflow
@@ -167,13 +220,14 @@ export const App: React.FC = () => {
         ? {
             ...c,
             status: newStatus,
-            urgency: newStatus === 'Compliant' ? ('Normal' as const) : c.urgency,
+            urgency: calculateUrgency(c.daysRemaining, newStatus),
             actionRequired: actionRemark
           }
         : c
     );
     setComplianceRecords(updatedRecs);
     saveStoredCompliance(updatedRecs);
+    dataService.updateComplianceStatus(id, newStatus, actionRemark);
 
     const target = complianceRecords.find((c) => c.id === id);
     if (target) {
@@ -197,6 +251,7 @@ export const App: React.FC = () => {
       const updatedLogs = [auditItem, ...auditLogs];
       setAuditLogs(updatedLogs);
       saveStoredAuditLogs(updatedLogs);
+      dataService.appendAuditLog(auditItem);
     }
   };
 

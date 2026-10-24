@@ -1,4 +1,32 @@
 import { Application, EVCVisit, ComplianceRecord, AuditLogItem, ExpertProfile } from '../types';
+import {
+  calculateDaysRemaining,
+  calculateUrgency,
+  calculateProcessingDays,
+  calculateIsOverdue
+} from '../lib/dateCalculations';
+import { calculateStageProgress } from '../lib/workflow';
+
+export function enrichApplicationCalculations(app: Application): Application {
+  const processingDays = calculateProcessingDays(app.submissionDate);
+  const isOverdue = calculateIsOverdue(app.currentStage, processingDays);
+  return {
+    ...app,
+    stageProgress: calculateStageProgress(app.currentStage),
+    processingDays,
+    isOverdue
+  };
+}
+
+export function enrichComplianceCalculations(rec: ComplianceRecord): ComplianceRecord {
+  const daysRemaining = calculateDaysRemaining(rec.validUntil);
+  const urgency = calculateUrgency(daysRemaining, rec.status);
+  return {
+    ...rec,
+    daysRemaining,
+    urgency
+  };
+}
 
 export const INITIAL_APPLICATIONS: Application[] = [
   {
@@ -442,8 +470,14 @@ const STORAGE_KEYS = {
   EXPERTS: 'aicte_portal_experts'
 };
 
+const memoryStore: Record<string, string> = {};
+
 export function loadData<T>(key: string, fallback: T): T {
   try {
+    if (typeof localStorage === 'undefined') {
+      const raw = memoryStore[key];
+      return raw ? JSON.parse(raw) as T : fallback;
+    }
     const raw = localStorage.getItem(key);
     if (!raw) {
       localStorage.setItem(key, JSON.stringify(fallback));
@@ -458,19 +492,25 @@ export function loadData<T>(key: string, fallback: T): T {
 
 export function saveData<T>(key: string, data: T): void {
   try {
+    if (typeof localStorage === 'undefined') {
+      memoryStore[key] = JSON.stringify(data);
+      return;
+    }
     localStorage.setItem(key, JSON.stringify(data));
   } catch (e) {
     console.error(`Error saving localStorage key "${key}":`, e);
   }
 }
 
-export const getStoredApplications = () => loadData(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
+export const getStoredApplications = (): Application[] =>
+  loadData(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS).map(enrichApplicationCalculations);
 export const saveStoredApplications = (apps: Application[]) => saveData(STORAGE_KEYS.APPLICATIONS, apps);
 
 export const getStoredEVCVisits = () => loadData(STORAGE_KEYS.EVC_VISITS, INITIAL_EVC_VISITS);
 export const saveStoredEVCVisits = (visits: EVCVisit[]) => saveData(STORAGE_KEYS.EVC_VISITS, visits);
 
-export const getStoredCompliance = () => loadData(STORAGE_KEYS.COMPLIANCE, INITIAL_COMPLIANCE);
+export const getStoredCompliance = (): ComplianceRecord[] =>
+  loadData(STORAGE_KEYS.COMPLIANCE, INITIAL_COMPLIANCE).map(enrichComplianceCalculations);
 export const saveStoredCompliance = (records: ComplianceRecord[]) => saveData(STORAGE_KEYS.COMPLIANCE, records);
 
 export const getStoredAuditLogs = () => loadData(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
