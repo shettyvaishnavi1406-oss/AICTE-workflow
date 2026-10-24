@@ -9,14 +9,23 @@ import {
   Application,
   ComplianceRecord,
   EVCVisit,
+  EVCVisitStatus,
   AuditLogItem,
   ExpertProfile,
   ApplicationStage
 } from '../types';
 import {
   isValidTransition,
-  calculateStageProgress
+  calculateStageProgress,
+  calculateMilestoneProgress,
+  deriveApplicationProgress,
+  findMatchingEVCVisit
 } from '../lib/workflow';
+import {
+  isValidEVCTransition,
+  validateEVCTeam,
+  checkExpertAvailability
+} from '../lib/evcWorkflow';
 
 export interface StageUpdateResult {
   success: boolean;
@@ -97,6 +106,9 @@ interface SupabaseEVCVisitRow {
   meeting_link?: string;
   instructions: string;
   critical_findings?: string;
+  started_at?: string;
+  report_submitted_at?: string;
+  verified_at?: string;
 }
 
 interface SupabaseAuditLogRow {
@@ -126,13 +138,16 @@ interface SupabaseExpertRow {
 
 /**
  * Maps a Supabase application record to the application model,
- * dynamically calculating processingDays and isOverdue at runtime.
+ * dynamically calculating processingDays, isOverdue, and statutory milestone progress at runtime.
  */
-export function mapApplicationRow(row: SupabaseApplicationRow): Application {
+export function mapApplicationRow(
+  row: SupabaseApplicationRow,
+  linkedVisit?: EVCVisit | null
+): Application {
   const processingDays = calculateProcessingDays(row.submission_date);
   const isOverdue = calculateIsOverdue(row.current_stage, processingDays);
 
-  return {
+  const partialApp: Application = {
     id: row.id,
     applicationNumber: row.application_number,
     instituteName: row.institute_name,
@@ -143,7 +158,7 @@ export function mapApplicationRow(row: SupabaseApplicationRow): Application {
     academicYear: row.academic_year,
     submissionDate: row.submission_date,
     currentStage: row.current_stage,
-    stageProgress: calculateStageProgress(row.current_stage),
+    stageProgress: row.stage_progress ?? 0,
     processingDays,
     isOverdue,
     evcAssigned: row.evc_assigned,
@@ -156,6 +171,14 @@ export function mapApplicationRow(row: SupabaseApplicationRow): Application {
     contactPhone: row.contact_phone,
     remarks: row.remarks,
     documents: row.documents || []
+  };
+
+  // Derive statutory milestone progression accurately from criteria and linked visit
+  const dynamicProgress = deriveApplicationProgress(partialApp, linkedVisit);
+
+  return {
+    ...partialApp,
+    stageProgress: dynamicProgress
   };
 }
 
@@ -201,7 +224,10 @@ export function mapEVCVisitRow(row: SupabaseEVCVisitRow): EVCVisit {
     convenor: row.convenor,
     meetingLink: row.meeting_link,
     instructions: row.instructions,
-    criticalFindings: row.critical_findings
+    criticalFindings: row.critical_findings,
+    startedAt: row.started_at,
+    reportSubmittedAt: row.report_submitted_at,
+    verifiedAt: row.verified_at
   };
 }
 
@@ -257,29 +283,49 @@ export function mapExpertRow(row: SupabaseExpertRow): ExpertProfile {
  */
 export const dataService = {
   /**
-   * Fetch all applications with dynamically computed processingDays and isOverdue
+   * Fetch all applications with dynamically computed processingDays, isOverdue,
+   * and synchronized statutory milestone progress based on real visit status.
    */
   async getApplications(): Promise<Application[]> {
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
-          .from('applications')
-          .select('*')
-          .order('submission_date', { ascending: false });
+        const [{ data: appRows, error: appError }, { data: evcRows }] = await Promise.all([
+          supabase
+            .from('applications')
+            .select('*')
+            .order('submission_date', { ascending: false }),
+          supabase.from('evc_visits').select('*')
+        ]);
 
-        if (!error && data && data.length > 0) {
-          const mapped = data.map((row) => mapApplicationRow(row as SupabaseApplicationRow));
+        if (!appError && appRows && appRows.length > 0) {
+          const visits = (evcRows || []).map((r) => mapEVCVisitRow(r as SupabaseEVCVisitRow));
+          const mapped = appRows.map((row) => {
+            const matchingVisit = visits.find((v) =>
+              (row.evc_id && v.id === row.evc_id) ||
+              (v.applicationNumber && row.application_number &&
+                v.applicationNumber.trim().toLowerCase() === row.application_number.trim().toLowerCase())
+            );
+            return mapApplicationRow(row as SupabaseApplicationRow, matchingVisit);
+          });
           saveStoredApplications(mapped);
           return mapped;
         }
-        if (error) {
-          console.warn('Supabase applications fetch failed, using fallback:', error.message);
+        if (appError) {
+          console.warn('Supabase applications fetch failed, using fallback:', appError.message);
         }
       } catch (err) {
         console.warn('Error connecting to Supabase applications:', err);
       }
     }
-    return getStoredApplications();
+    const stored = getStoredApplications();
+    const storedVisits = getStoredEVCVisits();
+    return stored.map((app) => {
+      const matchingVisit = findMatchingEVCVisit(app, storedVisits);
+      return {
+        ...app,
+        stageProgress: deriveApplicationProgress(app, matchingVisit)
+      };
+    });
   },
 
   /**
@@ -398,7 +444,16 @@ export const dataService = {
       };
     }
 
-    const calculatedProgress = customStageProgress ?? calculateStageProgress(newStage);
+    let calculatedProgress = customStageProgress;
+    if (calculatedProgress === undefined) {
+      const stored = getStoredApplications();
+      const storedVisits = getStoredEVCVisits();
+      const existingApp = stored.find((a) => a.id === appId);
+      const matchingVisit = existingApp ? findMatchingEVCVisit(existingApp, storedVisits) : null;
+      calculatedProgress = existingApp
+        ? deriveApplicationProgress({ ...existingApp, currentStage: newStage }, matchingVisit)
+        : calculateStageProgress(newStage);
+    }
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -528,25 +583,194 @@ export const dataService = {
     appId: string,
     newStage: ApplicationStage,
     stageProgress: number,
-    remarks: string
+    remarks: string = ''
   ): void {
     const apps = getStoredApplications();
     const appIndex = apps.findIndex((a) => a.id === appId);
     if (appIndex !== -1) {
       apps[appIndex].currentStage = newStage;
       apps[appIndex].stageProgress = stageProgress;
-      apps[appIndex].remarks = remarks;
+      if (remarks) apps[appIndex].remarks = remarks;
       saveStoredApplications(apps);
     }
   },
 
   /**
-   * Add a new EVC visit and update the related application.
+   * Update EVC visit status through the strict lifecycle:
+   * Scheduled → In Progress → Report Submitted → Verified
    */
-  async addEVCVisit(visit: EVCVisit): Promise<void> {
+  async updateEVCVisitStatus(
+    visitId: string,
+    nextStatus: EVCVisitStatus,
+    remarks?: string
+  ): Promise<{ success: boolean; visit?: EVCVisit; updatedApplication?: Application; error?: string }> {
+    if (!visitId || !nextStatus) {
+      return { success: false, error: 'Visit ID and target status are required.' };
+    }
+
+    const currentVisits = await this.getEVCVisits();
+    const currentVisit = currentVisits.find((v) => v.id === visitId);
+    if (!currentVisit) {
+      return { success: false, error: `EVC Visit with ID "${visitId}" was not found.` };
+    }
+
+    if (!isValidEVCTransition(currentVisit.status, nextStatus)) {
+      return {
+        success: false,
+        error: `Invalid status transition: cannot move from "${currentVisit.status}" to "${nextStatus}".`
+      };
+    }
+
+    const now = new Date().toISOString();
+    const updatedVisit: EVCVisit = {
+      ...currentVisit,
+      status: nextStatus,
+      criticalFindings: remarks || currentVisit.criticalFindings,
+      startedAt: nextStatus === 'In Progress' ? now : currentVisit.startedAt,
+      reportSubmittedAt: nextStatus === 'Report Submitted' ? now : currentVisit.reportSubmittedAt,
+      verifiedAt: nextStatus === 'Verified' ? now : currentVisit.verifiedAt
+    };
+
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('evc_visits').insert({
+        const updatePayload: Record<string, any> = {
+          status: nextStatus,
+          critical_findings: updatedVisit.criticalFindings
+        };
+
+        const { data: updatedRows, error: updateError } = await supabase
+          .from('evc_visits')
+          .update(updatePayload)
+          .eq('id', visitId)
+          .eq('status', currentVisit.status)
+          .select();
+
+        if (updateError) {
+          console.warn('Supabase EVC visit status update error:', updateError.message);
+          return { success: false, error: `Database update failed: ${updateError.message}` };
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+          return {
+            success: false,
+            error: 'Visit status was modified by another process. Please refresh and try again.'
+          };
+        }
+      } catch (err: any) {
+        console.warn('Supabase EVC visit status update unexpected error:', err);
+        return { success: false, error: err?.message || 'Server error updating EVC visit status.' };
+      }
+    }
+
+    // Update local cache
+    const updatedList = currentVisits.map((v) => (v.id === visitId ? updatedVisit : v));
+    saveStoredEVCVisits(updatedList);
+
+    // Synchronize linked application milestone progress
+    const currentApps = getStoredApplications();
+    const targetApp = currentApps.find(
+      (a) =>
+        (a.evcId && a.evcId === visitId) ||
+        (a.applicationNumber &&
+          updatedVisit.applicationNumber &&
+          a.applicationNumber.trim().toLowerCase() === updatedVisit.applicationNumber.trim().toLowerCase())
+    );
+
+    let updatedApplication: Application | undefined;
+
+    if (targetApp) {
+      const newMilestoneResult = calculateMilestoneProgress(targetApp, updatedVisit);
+      const newProgress = newMilestoneResult.percentage;
+
+      let nextAppStage = targetApp.currentStage;
+      if (nextStatus === 'Verified' && targetApp.currentStage === 'EVC Scheduled') {
+        nextAppStage = 'EVC Completed';
+      }
+
+      updatedApplication = {
+        ...targetApp,
+        currentStage: nextAppStage,
+        stageProgress: newProgress
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase
+            .from('applications')
+            .update({
+              current_stage: nextAppStage,
+              stage_progress: newProgress,
+              updated_at: now
+            })
+            .eq('id', targetApp.id);
+        } catch (syncErr) {
+          console.warn('Failed to sync application milestone progress to Supabase:', syncErr);
+        }
+      }
+
+      this.updateStoredApplicationStageLocally(targetApp.id, nextAppStage, newProgress);
+    }
+
+    return { success: true, visit: updatedVisit, updatedApplication };
+  },
+
+  /**
+   * Add a new EVC visit and update the related application.
+   * Validates duplicate team members and expert availability before creating.
+   */
+  async addEVCVisit(
+    visit: EVCVisit
+  ): Promise<{ success: boolean; visit?: EVCVisit; updatedApplication?: Application; error?: string }> {
+    const experts = await this.getExperts();
+    const existingVisits = await this.getEVCVisits();
+
+    // 1. Validate team members (Chairman cannot be Expert, no duplicate experts)
+    const teamValidation = validateEVCTeam(visit.chairman, visit.experts, experts);
+    if (!teamValidation.valid) {
+      return { success: false, error: teamValidation.error };
+    }
+
+    // 2. Validate Chairman availability
+    const chairAvail = checkExpertAvailability(
+      visit.chairman,
+      visit.visitDate,
+      visit.visitTime,
+      existingVisits,
+      experts
+    );
+    if (!chairAvail.isAvailable) {
+      return { success: false, error: `Committee Chairman: ${chairAvail.error}` };
+    }
+
+    // 3. Validate each Subject Expert availability
+    for (const exp of visit.experts) {
+      const expAvail = checkExpertAvailability(
+        exp,
+        visit.visitDate,
+        visit.visitTime,
+        existingVisits,
+        experts
+      );
+      if (!expAvail.isAvailable) {
+        return { success: false, error: `Subject Expert: ${expAvail.error}` };
+      }
+    }
+
+    // Derive statutory milestone progress for newly scheduled visit (Scheduled = incomplete milestone)
+    const storedApps = getStoredApplications();
+    const targetApp = storedApps.find(
+      (a) =>
+        a.applicationNumber.trim().toLowerCase() === visit.applicationNumber.trim().toLowerCase()
+    );
+    const scheduledAppPartial = targetApp
+      ? { ...targetApp, currentStage: 'EVC Scheduled' as ApplicationStage, evcAssigned: true, evcId: visit.id }
+      : null;
+    const progressResult = calculateMilestoneProgress(scheduledAppPartial, visit);
+    const newProgress = progressResult.percentage;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error: insertError } = await supabase.from('evc_visits').insert({
           id: visit.id,
           visit_code: visit.visitCode,
           application_number: visit.applicationNumber,
@@ -566,21 +790,44 @@ export const dataService = {
           critical_findings: visit.criticalFindings
         });
 
-        // Also update application evc status in Supabase
+        if (insertError) {
+          return { success: false, error: `Database insert failed: ${insertError.message}` };
+        }
+
+        // Also update application evc status in Supabase with accurate milestone progression
         await supabase
           .from('applications')
           .update({
             current_stage: 'EVC Scheduled',
-            stage_progress: 65,
+            stage_progress: newProgress,
             evc_assigned: true,
             evc_id: visit.id,
             updated_at: new Date().toISOString()
           })
           .eq('application_number', visit.applicationNumber);
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Supabase EVC visit insert error:', err);
+        return { success: false, error: err?.message || 'Database insert failed.' };
       }
     }
+
+    // Update local cache
+    const updatedVisits = [visit, ...existingVisits.filter((v) => v.id !== visit.id)];
+    saveStoredEVCVisits(updatedVisits);
+
+    let updatedApplication: Application | undefined;
+    if (targetApp) {
+      updatedApplication = {
+        ...targetApp,
+        currentStage: 'EVC Scheduled',
+        stageProgress: newProgress,
+        evcAssigned: true,
+        evcId: visit.id
+      };
+      this.updateStoredApplicationStageLocally(targetApp.id, 'EVC Scheduled', newProgress);
+    }
+
+    return { success: true, visit, updatedApplication };
   },
 
   /**

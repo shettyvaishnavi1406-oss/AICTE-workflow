@@ -50,6 +50,15 @@ export interface Application {
   remarks?: string;
 }
 
+export type EVCVisitStatus =
+  | 'Scheduled'
+  | 'In Progress'
+  | 'Report Submitted'
+  | 'Verified'
+  | 'Committee Assembled'
+  | 'Inspection Completed'
+  | 'Report Verified';
+
 export interface EVCVisit {
   id: string;
   visitCode: string;
@@ -61,7 +70,7 @@ export interface EVCVisit {
   visitDate: string;
   visitTime: string;
   visitMode: 'Physical On-Site' | 'Virtual Video EVC';
-  status: 'Scheduled' | 'Committee Assembled' | 'Inspection Completed' | 'Report Submitted' | 'Report Verified';
+  status: EVCVisitStatus;
   chairman: string;
   experts: string[];
   convenor: string;
@@ -69,6 +78,9 @@ export interface EVCVisit {
   instructions: string;
   inspectionReportUrl?: string;
   criticalFindings?: string;
+  startedAt?: string;
+  reportSubmittedAt?: string;
+  verifiedAt?: string;
 }
 
 export interface ComplianceRecord {

@@ -28,10 +28,22 @@ import {
   enrichApplicationCalculations,
   enrichComplianceCalculations
 } from './data/mockData';
-import { Application, ApplicationStage, EVCVisit, ComplianceRecord, AuditLogItem, ExpertProfile } from './types';
+import {
+  Application,
+  ApplicationStage,
+  EVCVisit,
+  EVCVisitStatus,
+  ComplianceRecord,
+  AuditLogItem,
+  ExpertProfile
+} from './types';
 import { dataService } from './services/dataService';
 import { calculateIsOverdue, calculateUrgency } from './lib/dateCalculations';
-import { calculateStageProgress } from './lib/workflow';
+import {
+  calculateStageProgress,
+  deriveApplicationProgress,
+  findMatchingEVCVisit
+} from './lib/workflow';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('landing');
@@ -79,7 +91,7 @@ export const App: React.FC = () => {
   const handleResetData = () => {
     if (window.confirm('Reset all demo applications and EVC records to default values?')) {
       localStorage.clear();
-      const freshApps = INITIAL_APPLICATIONS.map(enrichApplicationCalculations);
+      const freshApps = INITIAL_APPLICATIONS.map((app) => enrichApplicationCalculations(app));
       const freshComps = INITIAL_COMPLIANCE.map(enrichComplianceCalculations);
 
       setApplications(freshApps);
@@ -167,27 +179,36 @@ export const App: React.FC = () => {
   };
 
   // Add EVC Visit workflow (Teammate / Member 2)
-  const handleAddEVCVisit = (newVisit: EVCVisit) => {
-    const updatedVisits = [newVisit, ...evcVisits];
+  const handleAddEVCVisit = async (newVisit: EVCVisit) => {
+    const res = await dataService.addEVCVisit(newVisit);
+    if (!res.success) {
+      return res;
+    }
+
+    const updatedVisits = [newVisit, ...evcVisits.filter((v) => v.id !== newVisit.id)];
     setEvcVisits(updatedVisits);
     saveStoredEVCVisits(updatedVisits);
 
     // Update corresponding application to EVC Scheduled
-    const evcScheduledProgress = calculateStageProgress('EVC Scheduled');
     const updatedApps = applications.map((app) =>
       app.applicationNumber === newVisit.applicationNumber
-        ? {
+        ? (res.updatedApplication || {
             ...app,
             currentStage: 'EVC Scheduled' as ApplicationStage,
-            stageProgress: evcScheduledProgress,
+            stageProgress: deriveApplicationProgress(app, newVisit),
             evcAssigned: true,
+            evcId: newVisit.id,
             isOverdue: calculateIsOverdue('EVC Scheduled', app.processingDays)
-          }
+          })
         : app
     );
     setApplications(updatedApps);
     saveStoredApplications(updatedApps);
-    dataService.addEVCVisit(newVisit);
+
+    if (selectedAppForDossier && selectedAppForDossier.applicationNumber === newVisit.applicationNumber) {
+      const updatedDossier = updatedApps.find((a) => a.id === selectedAppForDossier.id);
+      if (updatedDossier) setSelectedAppForDossier(updatedDossier);
+    }
 
     // Add audit log
     const auditItem: AuditLogItem = {
@@ -211,6 +232,76 @@ export const App: React.FC = () => {
     setAuditLogs(updatedLogs);
     saveStoredAuditLogs(updatedLogs);
     dataService.appendAuditLog(auditItem);
+
+    return res;
+  };
+
+  // EVC Visit status update workflow
+  const handleUpdateEVCStatus = async (
+    visitId: string,
+    nextStatus: EVCVisitStatus,
+    remarks?: string
+  ) => {
+    const result = await dataService.updateEVCVisitStatus(visitId, nextStatus, remarks);
+    if (!result.success) {
+      return result;
+    }
+
+    const updated = evcVisits.map((v) =>
+      v.id === visitId ? (result.visit || { ...v, status: nextStatus }) : v
+    );
+    setEvcVisits(updated);
+    saveStoredEVCVisits(updated);
+
+    // Synchronize application milestone progress with updated EVC visit status
+    let updatedApps: Application[];
+    if (result.updatedApplication) {
+      updatedApps = applications.map((a) =>
+        a.id === result.updatedApplication!.id ? result.updatedApplication! : a
+      );
+    } else {
+      updatedApps = applications.map((a) => {
+        const matchingVisit = findMatchingEVCVisit(a, updated);
+        return {
+          ...a,
+          stageProgress: deriveApplicationProgress(a, matchingVisit)
+        };
+      });
+    }
+    setApplications(updatedApps);
+    saveStoredApplications(updatedApps);
+
+    if (selectedAppForDossier) {
+      const updatedDossier = updatedApps.find((a) => a.id === selectedAppForDossier.id);
+      if (updatedDossier) setSelectedAppForDossier(updatedDossier);
+    }
+
+    const targetVisit = evcVisits.find((v) => v.id === visitId);
+    if (targetVisit) {
+      const auditItem: AuditLogItem = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) + ' IST',
+        actor: 'Regional Office Committee Desk',
+        role: 'EVC Chairman',
+        action: `EVC Visit Status: ${nextStatus}`,
+        applicationNumber: targetVisit.applicationNumber,
+        instituteName: targetVisit.instituteName,
+        details: `Visit ${targetVisit.visitCode} progressed to ${nextStatus}. ${remarks || ''}`
+      };
+      const updatedLogs = [auditItem, ...auditLogs];
+      setAuditLogs(updatedLogs);
+      saveStoredAuditLogs(updatedLogs);
+      dataService.appendAuditLog(auditItem);
+    }
+
+    return result;
   };
 
   // Compliance status update workflow
@@ -344,6 +435,7 @@ export const App: React.FC = () => {
             experts={experts}
             applications={applications}
             onAddEVCVisit={handleAddEVCVisit}
+            onUpdateEVCStatus={handleUpdateEVCStatus}
             onOpenTrackModal={handleOpenTrackModal}
           />
         )}
@@ -389,6 +481,7 @@ export const App: React.FC = () => {
         isOpen={isTrackModalOpen}
         onClose={() => setIsTrackModalOpen(false)}
         applications={applications}
+        evcVisits={evcVisits}
         initialAppNumber={trackInitialAppNum}
         onOpenDossier={(app) => {
           setIsTrackModalOpen(false);

@@ -5,14 +5,14 @@ import {
   calculateProcessingDays,
   calculateIsOverdue
 } from '../lib/dateCalculations';
-import { calculateStageProgress } from '../lib/workflow';
+import { calculateStageProgress, deriveApplicationProgress } from '../lib/workflow';
 
-export function enrichApplicationCalculations(app: Application): Application {
+export function enrichApplicationCalculations(app: Application, evcVisit?: EVCVisit | null): Application {
   const processingDays = calculateProcessingDays(app.submissionDate);
   const isOverdue = calculateIsOverdue(app.currentStage, processingDays);
   return {
     ...app,
-    stageProgress: calculateStageProgress(app.currentStage),
+    stageProgress: deriveApplicationProgress(app, evcVisit),
     processingDays,
     isOverdue
   };
@@ -40,7 +40,7 @@ export const INITIAL_APPLICATIONS: Application[] = [
     academicYear: '2026-27',
     submissionDate: '2026-09-14',
     currentStage: 'EVC Scheduled',
-    stageProgress: 65,
+    stageProgress: 40,
     processingDays: 41,
     isOverdue: false,
     evcAssigned: true,
@@ -503,7 +503,7 @@ export function saveData<T>(key: string, data: T): void {
 }
 
 export const getStoredApplications = (): Application[] =>
-  loadData(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS).map(enrichApplicationCalculations);
+  loadData(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS).map((app) => enrichApplicationCalculations(app));
 export const saveStoredApplications = (apps: Application[]) => saveData(STORAGE_KEYS.APPLICATIONS, apps);
 
 export const getStoredEVCVisits = () => loadData(STORAGE_KEYS.EVC_VISITS, INITIAL_EVC_VISITS);

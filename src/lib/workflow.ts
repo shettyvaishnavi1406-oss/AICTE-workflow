@@ -175,3 +175,17 @@ export function getStageDisplayLabel(stage?: ApplicationStage | string | null): 
   if (!stage || typeof stage !== 'string') return '';
   return STAGE_DISPLAY_LABELS[stage.trim()] || stage.trim();
 }
+
+// Re-export statutory milestone calculations
+export {
+  calculateMilestoneProgress,
+  deriveApplicationProgress,
+  findMatchingEVCVisit,
+  isEVCVisitVerified
+} from './milestoneCalculations';
+export type {
+  StatutoryMilestone,
+  StatutoryMilestoneId,
+  MilestoneStatus,
+  MilestoneProgressResult
+} from './milestoneCalculations';

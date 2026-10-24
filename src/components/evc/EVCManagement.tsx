@@ -3,23 +3,28 @@ import {
   CalendarClock,
   Video,
   MapPin,
-  UserCheck,
   Plus,
-  Search,
-  ExternalLink,
   Clock,
   FileCheck2,
   Users,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Play,
+  RotateCw
 } from 'lucide-react';
-import { EVCVisit, ExpertProfile, Application } from '../../types';
+import { EVCVisit, ExpertProfile, Application, EVCVisitStatus } from '../../types';
+import {
+  validateEVCTeam,
+  checkExpertAvailability,
+  computeExpertStatus
+} from '../../lib/evcWorkflow';
 
 interface EVCManagementProps {
   evcVisits: EVCVisit[];
   experts: ExpertProfile[];
   applications: Application[];
-  onAddEVCVisit: (visit: EVCVisit) => void;
+  onAddEVCVisit: (visit: EVCVisit) => Promise<{ success: boolean; error?: string } | void> | void;
+  onUpdateEVCStatus?: (visitId: string, nextStatus: EVCVisitStatus, remarks?: string) => Promise<{ success: boolean; error?: string }>;
   onOpenTrackModal: (appNum?: string) => void;
 }
 
@@ -28,6 +33,7 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
   experts,
   applications,
   onAddEVCVisit,
+  onUpdateEVCStatus,
   onOpenTrackModal,
 }) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -39,10 +45,85 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
   const [selectedExpert, setSelectedExpert] = useState(experts[1]?.name || '');
   const [instructions, setInstructions] = useState('Mandatory live verification of server room, labs, and faculty attendance.');
 
-  const handleCreateVisit = (e: React.FormEvent) => {
+  // Lifecycle action state
+  const [updatingVisitId, setUpdatingVisitId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ visitId: string; type: 'success' | 'error'; message: string } | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  const handleAdvanceStatus = async (visit: EVCVisit, nextStatus: EVCVisitStatus) => {
+    if (updatingVisitId === visit.id) return; // Prevent duplicate clicks
+    setUpdatingVisitId(visit.id);
+    setFeedback(null);
+
+    try {
+      if (onUpdateEVCStatus) {
+        const res = await onUpdateEVCStatus(visit.id, nextStatus);
+        if (res && res.success === false) {
+          setFeedback({
+            visitId: visit.id,
+            type: 'error',
+            message: res.error || 'Failed to update visit status.'
+          });
+          return;
+        }
+      }
+      setFeedback({
+        visitId: visit.id,
+        type: 'success',
+        message: `Visit status updated to "${nextStatus}".`
+      });
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err: any) {
+      setFeedback({
+        visitId: visit.id,
+        type: 'error',
+        message: err?.message || 'Error updating visit status.'
+      });
+    } finally {
+      setUpdatingVisitId(null);
+    }
+  };
+
+  const handleCreateVisit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setScheduleError(null);
+
     const app = applications.find(a => a.id === selectedAppId);
-    if (!app) return;
+    if (!app) {
+      setScheduleError('Please select a valid technical institution.');
+      return;
+    }
+
+    if (!visitDate || !visitDate.trim()) {
+      setScheduleError('Inspection date is missing; cannot verify expert availability.');
+      return;
+    }
+
+    if (!visitTime || !visitTime.trim()) {
+      setScheduleError('Inspection time is missing; cannot verify expert availability.');
+      return;
+    }
+
+    // 1. Validate team members (Chairman cannot be Expert, no duplicate experts)
+    const teamValidation = validateEVCTeam(selectedChairman, [selectedExpert], experts);
+    if (!teamValidation.valid) {
+      setScheduleError(teamValidation.error || 'Invalid committee composition.');
+      return;
+    }
+
+    // 2. Validate Chairman availability on visitDate & visitTime
+    const chairAvail = checkExpertAvailability(selectedChairman, visitDate, visitTime, evcVisits, experts);
+    if (!chairAvail.isAvailable) {
+      setScheduleError(`Committee Chairman: ${chairAvail.error}`);
+      return;
+    }
+
+    // 3. Validate Subject Expert availability on visitDate & visitTime
+    const expAvail = checkExpertAvailability(selectedExpert, visitDate, visitTime, evcVisits, experts);
+    if (!expAvail.isAvailable) {
+      setScheduleError(`Subject Expert: ${expAvail.error}`);
+      return;
+    }
 
     const newVisit: EVCVisit = {
       id: `evc-${Date.now()}`,
@@ -64,7 +145,12 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       criticalFindings: 'Committee officially constituted.'
     };
 
-    onAddEVCVisit(newVisit);
+    const res = await onAddEVCVisit(newVisit);
+    if (res && (res as any).success === false) {
+      setScheduleError((res as any).error || 'Failed to schedule EVC visit.');
+      return;
+    }
+
     setShowScheduleModal(false);
   };
 
@@ -74,10 +160,6 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       <div className="bg-white rounded-lg border border-gov-slate-200 p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-
-
-            </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gov-navy mt-1">
               Expert Visit Committee (EVC) Management
             </h2>
@@ -89,7 +171,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowScheduleModal(true)}
+              onClick={() => {
+                setScheduleError(null);
+                setShowScheduleModal(true);
+              }}
               className="inline-flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 font-bold text-xs px-3.5 py-2 rounded shadow-sm border border-amber-400 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -99,7 +184,7 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
         </div>
       </div>
 
-      {/* Verified Expert Roster Preview */}
+      {/* Verified Expert Roster Preview with Dynamic Availability */}
       <div className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -108,27 +193,35 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
               Empanelled Academic &amp; Industrial Experts ({experts.length})
             </h3>
           </div>
-          <span className="text-[11px] text-gov-slate-500">AICTE National Expert Database</span>
+          <span className="text-[11px] text-gov-slate-500">AICTE National Expert Database (Live Workload Tracking)</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {experts.map((exp) => (
-            <div key={exp.id} className="border border-gov-slate-200 rounded p-3 bg-gov-slate-50 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-gov-navy truncate">{exp.name}</span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${exp.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+          {experts.map((exp) => {
+            const computedStatus = computeExpertStatus(exp, evcVisits);
+            return (
+              <div key={exp.id} className="border border-gov-slate-200 rounded p-3 bg-gov-slate-50 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gov-navy truncate">{exp.name}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    computedStatus === 'Available'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : computedStatus === 'Assigned'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-slate-200 text-slate-700'
                   }`}>
-                  {exp.status}
-                </span>
+                    {computedStatus}
+                  </span>
+                </div>
+                <div className="text-gov-slate-600 mt-0.5 truncate">{exp.designation}</div>
+                <div className="text-gov-slate-500 text-[11px] truncate">{exp.institution}</div>
+                <div className="mt-2 pt-2 border-t border-gov-slate-200 flex items-center justify-between text-[11px] text-gov-slate-500">
+                  <span>{exp.discipline}</span>
+                  <span className="font-semibold text-amber-700">★ {exp.rating}</span>
+                </div>
               </div>
-              <div className="text-gov-slate-600 mt-0.5 truncate">{exp.designation}</div>
-              <div className="text-gov-slate-500 text-[11px] truncate">{exp.institution}</div>
-              <div className="mt-2 pt-2 border-t border-gov-slate-200 flex items-center justify-between text-[11px] text-gov-slate-500">
-                <span>{exp.discipline}</span>
-                <span className="font-semibold text-amber-700">★ {exp.rating}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -136,94 +229,206 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       <div className="bg-white rounded-lg border border-gov-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gov-slate-200 bg-gov-slate-50 flex items-center justify-between">
           <h3 className="text-sm font-bold text-gov-navy">Constituted EVC Panels ({evcVisits.length})</h3>
-          <span className="text-xs text-gov-slate-500">Live Video EVC protocol compliant</span>
+          <span className="text-xs text-gov-slate-500">Scheduled → In Progress → Report Submitted → Verified</span>
         </div>
 
         <div className="divide-y divide-gov-slate-200">
-          {evcVisits.map((visit) => (
-            <div key={visit.id} className="p-5 hover:bg-gov-slate-50 transition-colors">
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-gov-navy bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      {visit.visitCode}
-                    </span>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${visit.visitMode === 'Virtual Video EVC'
-                      ? 'bg-purple-50 text-purple-700 border-purple-200'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
+          {evcVisits.map((visit) => {
+            const isUpdating = updatingVisitId === visit.id;
+            const visitFeedback = feedback && feedback.visitId === visit.id ? feedback : null;
+
+            return (
+              <div key={visit.id} className="p-5 hover:bg-gov-slate-50 transition-colors">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold text-gov-navy bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        {visit.visitCode}
+                      </span>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                        visit.visitMode === 'Virtual Video EVC'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
                       }`}>
-                      {visit.visitMode}
-                    </span>
-                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
-                      {visit.status}
-                    </span>
-                  </div>
+                        {visit.visitMode}
+                      </span>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                        visit.status === 'Scheduled' || visit.status === 'Committee Assembled'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : visit.status === 'In Progress' || visit.status === 'Inspection Completed'
+                          ? 'bg-blue-50 text-blue-800 border-blue-300'
+                          : visit.status === 'Report Submitted'
+                          ? 'bg-purple-50 text-purple-800 border-purple-300'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      }`}>
+                        {visit.status}
+                      </span>
+                    </div>
 
-                  <h3 className="text-base font-bold text-gov-slate-900">
-                    {visit.instituteName}
-                  </h3>
+                    <h3 className="text-base font-bold text-gov-slate-900">
+                      {visit.instituteName}
+                    </h3>
 
-                  <div className="text-xs text-gov-slate-600 flex flex-wrap items-center gap-4">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-gov-slate-400" />
-                      {visit.visitDate} ({visit.visitTime})
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-gov-slate-400" />
-                      {visit.city}, {visit.state}
-                    </span>
-                    <span>
-                      Application: <strong className="font-mono">{visit.applicationNumber}</strong>
-                    </span>
-                  </div>
+                    <div className="text-xs text-gov-slate-600 flex flex-wrap items-center gap-4">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-gov-slate-400" />
+                        {visit.visitDate} ({visit.visitTime})
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-gov-slate-400" />
+                        {visit.city}, {visit.state}
+                      </span>
+                      <span>
+                        Application: <strong className="font-mono">{visit.applicationNumber}</strong>
+                      </span>
+                    </div>
 
-                  <div className="text-xs bg-gov-slate-100 p-2.5 rounded border border-gov-slate-200 mt-2 space-y-1">
-                    <div><strong>Committee Chairman:</strong> {visit.chairman}</div>
-                    <div><strong>Subject Experts:</strong> {visit.experts.join(', ')}</div>
-                    <div><strong>Regional Convenor:</strong> {visit.convenor}</div>
-                    {visit.criticalFindings && (
-                      <div className="text-emerald-800 font-medium">
-                        <strong>Findings:</strong> {visit.criticalFindings}
+                    <div className="text-xs bg-gov-slate-100 p-2.5 rounded border border-gov-slate-200 mt-2 space-y-1">
+                      <div><strong>Committee Chairman:</strong> {visit.chairman}</div>
+                      <div><strong>Subject Experts:</strong> {visit.experts.join(', ')}</div>
+                      <div><strong>Regional Convenor:</strong> {visit.convenor}</div>
+                      {visit.criticalFindings && (
+                        <div className="text-emerald-800 font-medium">
+                          <strong>Findings:</strong> {visit.criticalFindings}
+                        </div>
+                      )}
+                      {(visit.startedAt || visit.reportSubmittedAt || visit.verifiedAt) && (
+                        <div className="text-[11px] text-gov-slate-500 pt-1 border-t border-gov-slate-200 flex flex-wrap gap-3">
+                          {visit.startedAt && <span>Started: {new Date(visit.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                          {visit.reportSubmittedAt && <span>Reported: {new Date(visit.reportSubmittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                          {visit.verifiedAt && <span className="font-semibold text-emerald-700">Verified: {new Date(visit.verifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {visitFeedback && (
+                      <div className={`mt-2 p-2 rounded text-xs flex items-center gap-2 ${
+                        visitFeedback.type === 'success'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                          : 'bg-rose-50 text-rose-800 border border-rose-300'
+                      }`}>
+                        {visitFeedback.type === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                        )}
+                        <span>{visitFeedback.message}</span>
                       </div>
                     )}
                   </div>
-                </div>
 
-                <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
-                  {visit.meetingLink && (
-                    <a
-                      href={visit.meetingLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 bg-gov-navy hover:bg-gov-navy-light text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors shadow-sm"
+                  {/* Actions Column */}
+                  <div className="flex flex-col sm:items-end gap-2 flex-shrink-0">
+                    {/* Lifecycle Action Buttons */}
+                    {(visit.status === 'Scheduled' || visit.status === 'Committee Assembled') && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleAdvanceStatus(visit, 'In Progress')}
+                        className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isUpdating ? (
+                          <>
+                            <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Starting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Start Visit</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {(visit.status === 'In Progress' || visit.status === 'Inspection Completed') && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleAdvanceStatus(visit, 'Report Submitted')}
+                        className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isUpdating ? (
+                          <>
+                            <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Submitting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileCheck2 className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Submit Report</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {visit.status === 'Report Submitted' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleAdvanceStatus(visit, 'Verified')}
+                        className="inline-flex items-center gap-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        {isUpdating ? (
+                          <>
+                            <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Verifying...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Verify Report</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {(visit.status === 'Verified' || visit.status === 'Report Verified') && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Verified</span>
+                      </span>
+                    )}
+
+                    {visit.meetingLink && (
+                      <a
+                        href={visit.meetingLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-gov-navy hover:bg-gov-navy-light text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors shadow-sm"
+                      >
+                        <Video className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Launch Video EVC Room</span>
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => onOpenTrackModal(visit.applicationNumber)}
+                      className="text-xs text-gov-navy hover:underline font-semibold"
                     >
-                      <Video className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Launch Video EVC Room</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onOpenTrackModal(visit.applicationNumber)}
-                    className="text-xs text-gov-navy hover:underline font-semibold"
-                  >
-                    View Application Dossier
-                  </button>
+                      View Application Dossier
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Schedule EVC Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-gov-slate-300 w-full max-w-lg overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl border border-gov-slate-300 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="bg-gov-navy text-white px-5 py-3.5 flex items-center justify-between border-b-2 border-gov-saffron">
               <h3 className="font-bold text-sm">Schedule Expert Visit Committee (EVC) Panel</h3>
               <button
                 type="button"
-                onClick={() => setShowScheduleModal(false)}
+                onClick={() => {
+                  setScheduleError(null);
+                  setShowScheduleModal(false);
+                }}
                 className="text-slate-300 hover:text-white"
               >
                 ✕
@@ -231,6 +436,13 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
             </div>
 
             <form onSubmit={handleCreateVisit} className="p-5 space-y-3.5 text-xs sm:text-sm">
+              {scheduleError && (
+                <div className="p-3 bg-rose-50 border border-rose-300 rounded text-rose-800 font-semibold flex items-center gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span>{scheduleError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
                   Select Technical Institution:
@@ -257,7 +469,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                   <input
                     type="date"
                     value={visitDate}
-                    onChange={(e) => setVisitDate(e.target.value)}
+                    onChange={(e) => {
+                      setVisitDate(e.target.value);
+                      setScheduleError(null);
+                    }}
                     className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
                     required
                   />
@@ -284,10 +499,20 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                   </label>
                   <select
                     value={selectedChairman}
-                    onChange={(e) => setSelectedChairman(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedChairman(e.target.value);
+                      setScheduleError(null);
+                    }}
                     className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
                   >
-                    {experts.map(e => <option key={e.id} value={e.name}>{e.name} ({e.institution.slice(0, 15)}...)</option>)}
+                    {experts.map((e) => {
+                      const avail = checkExpertAvailability(e.name, visitDate, visitTime, evcVisits, experts);
+                      return (
+                        <option key={e.id} value={e.name}>
+                          {e.name} {avail.isAvailable ? '' : '[Busy on Date]'}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>
@@ -296,10 +521,20 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                   </label>
                   <select
                     value={selectedExpert}
-                    onChange={(e) => setSelectedExpert(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedExpert(e.target.value);
+                      setScheduleError(null);
+                    }}
                     className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
                   >
-                    {experts.map(e => <option key={e.id} value={e.name}>{e.name} ({e.discipline})</option>)}
+                    {experts.map((e) => {
+                      const avail = checkExpertAvailability(e.name, visitDate, visitTime, evcVisits, experts);
+                      return (
+                        <option key={e.id} value={e.name}>
+                          {e.name} ({e.discipline}) {avail.isAvailable ? '' : '[Busy on Date]'}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -319,7 +554,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-gov-slate-200">
                 <button
                   type="button"
-                  onClick={() => setShowScheduleModal(false)}
+                  onClick={() => {
+                    setScheduleError(null);
+                    setShowScheduleModal(false);
+                  }}
                   className="px-3 py-1.5 border border-gov-slate-300 rounded text-xs font-semibold text-gov-slate-700 hover:bg-gov-slate-100"
                 >
                   Cancel

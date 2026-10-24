@@ -294,9 +294,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         }`}>
                         {visit.visitMode}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${visit.status === 'Scheduled'
-                        ? 'bg-amber-50 text-amber-800 border-amber-300'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        visit.status === 'Scheduled' || visit.status === 'Committee Assembled'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : visit.status === 'In Progress' || visit.status === 'Inspection Completed'
+                          ? 'bg-blue-50 text-blue-800 border-blue-300'
+                          : visit.status === 'Report Submitted'
+                          ? 'bg-purple-50 text-purple-800 border-purple-300'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-300'
                         }`}>
                         {visit.status}
                       </span>

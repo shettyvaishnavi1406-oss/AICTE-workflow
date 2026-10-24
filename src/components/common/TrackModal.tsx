@@ -12,12 +12,14 @@ import {
   MapPin,
   ShieldCheck
 } from 'lucide-react';
-import { Application } from '../../types';
+import { Application, EVCVisit } from '../../types';
+import { calculateMilestoneProgress, findMatchingEVCVisit } from '../../lib/workflow';
 
 interface TrackModalProps {
   isOpen: boolean;
   onClose: () => void;
   applications: Application[];
+  evcVisits?: EVCVisit[];
   initialAppNumber?: string;
   onOpenDossier: (app: Application) => void;
 }
@@ -26,6 +28,7 @@ export const TrackModal: React.FC<TrackModalProps> = ({
   isOpen,
   onClose,
   applications,
+  evcVisits = [],
   initialAppNumber = '',
   onOpenDossier,
 }) => {
@@ -35,10 +38,18 @@ export const TrackModal: React.FC<TrackModalProps> = ({
   useEffect(() => {
     if (initialAppNumber) {
       setQuery(initialAppNumber);
+      const term = initialAppNumber.trim().toLowerCase();
       const match = applications.find(
-        (a) => a.applicationNumber.toLowerCase() === initialAppNumber.toLowerCase()
+        (a) =>
+          a.applicationNumber.toLowerCase() === term ||
+          a.instituteName.toLowerCase().includes(term) ||
+          a.instituteCode.toLowerCase().includes(term)
       );
-      if (match) setSelectedApp(match);
+      if (match) {
+        setSelectedApp(match);
+      } else if (applications.length > 0 && !selectedApp) {
+        setSelectedApp(applications[0]);
+      }
     } else if (applications.length > 0 && !selectedApp) {
       setSelectedApp(applications[0]);
     }
@@ -49,11 +60,12 @@ export const TrackModal: React.FC<TrackModalProps> = ({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    const term = query.trim().toLowerCase();
     const match = applications.find(
       (a) =>
-        a.applicationNumber.toLowerCase().includes(query.trim().toLowerCase()) ||
-        a.instituteName.toLowerCase().includes(query.trim().toLowerCase()) ||
-        a.instituteCode.toLowerCase().includes(query.trim().toLowerCase())
+        a.applicationNumber.toLowerCase().includes(term) ||
+        a.instituteName.toLowerCase().includes(term) ||
+        a.instituteCode.toLowerCase().includes(term)
     );
     if (match) {
       setSelectedApp(match);
@@ -62,13 +74,9 @@ export const TrackModal: React.FC<TrackModalProps> = ({
     }
   };
 
-  const workflowStages = [
-    'Draft',
-    'Scrutiny',
-    'EVC Visit',
-    'SAC Committee',
-    'Final EoA Order'
-  ];
+  const matchingVisit = selectedApp ? findMatchingEVCVisit(selectedApp, evcVisits) : null;
+  const milestoneResult = selectedApp ? calculateMilestoneProgress(selectedApp, matchingVisit) : null;
+  const milestonePercent = milestoneResult ? milestoneResult.percentage : (selectedApp?.stageProgress ?? 0);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -158,21 +166,43 @@ export const TrackModal: React.FC<TrackModalProps> = ({
 
             {/* Workflow Timeline visual */}
             <div>
-              <span className="block text-xs font-bold text-gov-slate-700 mb-2">
-                Statutory Milestone Progression ({selectedApp.stageProgress}% Completed)
-              </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gov-slate-700">
+                  Statutory Milestone Progression ({milestonePercent}% Completed)
+                </span>
+                <span className="text-[11px] font-mono text-gov-slate-500 font-medium">
+                  {milestoneResult?.completedCount ?? 0} of {milestoneResult?.totalApplicable ?? 5} Milestones Met
+                </span>
+              </div>
               <div className="w-full bg-gov-slate-200 h-2.5 rounded-full overflow-hidden">
                 <div
                   className="bg-gov-navy h-full transition-all duration-300"
-                  style={{ width: `${selectedApp.stageProgress}%` }}
+                  style={{ width: `${milestonePercent}%` }}
                 />
               </div>
 
-              <div className="flex justify-between text-[11px] text-gov-slate-500 mt-2">
-                {workflowStages.map((stg, i) => (
-                  <span key={i} className="font-medium text-center">
-                    {stg}
-                  </span>
+              <div className="grid grid-cols-5 gap-1 text-[11px] mt-2.5">
+                {(milestoneResult?.milestones ?? []).map((m) => (
+                  <div key={m.id} className="flex flex-col items-center text-center p-1 rounded bg-gov-slate-50 border border-gov-slate-200/60">
+                    <span className="font-semibold text-gov-slate-800 text-[11px] truncate w-full">{m.label}</span>
+                    <span className={`text-[10px] mt-1 px-1.5 py-0.2 rounded-full font-medium ${
+                      m.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : m.status === 'in_progress'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : m.status === 'deficient'
+                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    }`}>
+                      {m.status === 'completed'
+                        ? 'Completed'
+                        : m.status === 'in_progress'
+                        ? (m.id === 'evc' && matchingVisit?.status ? matchingVisit.status : 'In Progress')
+                        : m.status === 'deficient'
+                        ? 'Deficient'
+                        : 'Pending'}
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
