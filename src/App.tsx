@@ -28,6 +28,7 @@ import {
   INITIAL_EXPERTS
 } from './data/mockData';
 import { Application, ApplicationStage, EVCVisit, ComplianceRecord, AuditLogItem } from './types';
+import { supabase } from './lib/supabase';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('landing');
@@ -36,6 +37,60 @@ export const App: React.FC = () => {
   const [complianceRecords, setComplianceRecords] = useState<ComplianceRecord[]>(getStoredCompliance);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(getStoredAuditLogs);
   const [experts] = useState(getStoredExperts);
+
+  // Sync compliance and audit logs from Supabase
+  const refreshFromSupabase = React.useCallback(async () => {
+    try {
+      const { data: compData } = await supabase.from('compliance_records').select('*');
+      if (compData && compData.length > 0) {
+        const mapped: ComplianceRecord[] = compData.map((r: any) => ({
+          id: r.id,
+          instituteCode: r.institute_code,
+          instituteName: r.institute_name,
+          applicationNumber: r.application_number,
+          category: r.category,
+          title: r.title,
+          validUntil: r.valid_until,
+          daysRemaining: r.days_remaining,
+          urgency: r.urgency,
+          status: r.status,
+          lastAuditDate: r.last_audit_date,
+          actionRequired: r.action_required,
+          escalation_level: r.escalation_level,
+          escalated_at: r.escalated_at
+        }));
+        setComplianceRecords(mapped);
+      }
+
+      const { data: auditData } = await supabase.from('audit_logs').select('*').order('event_timestamp', { ascending: false });
+      if (auditData && auditData.length > 0) {
+        const mappedAudit: AuditLogItem[] = auditData.map((a: any) => ({
+          id: a.id,
+          timestamp: new Date(a.event_timestamp).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }) + ' IST',
+          actor: a.actor,
+          role: a.role as any,
+          action: a.action,
+          applicationNumber: a.application_number,
+          instituteName: a.institute_name,
+          details: a.details
+        }));
+        setAuditLogs(mappedAudit);
+      }
+    } catch (e) {
+      console.warn('Could not sync live records from Supabase, using local fallback:', e);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshFromSupabase();
+  }, [refreshFromSupabase]);
 
   // Modals state
   const [selectedAppForDossier, setSelectedAppForDossier] = useState<Application | null>(null);
@@ -61,6 +116,7 @@ export const App: React.FC = () => {
       alert('Prototype records restored to initial demo state.');
     }
   };
+
 
   // Stage update workflow (Member 1)
   const handleUpdateStage = (appId: string, newStage: ApplicationStage, remark: string) => {
@@ -264,6 +320,8 @@ export const App: React.FC = () => {
             evcVisits={evcVisits}
             complianceRecords={complianceRecords}
             auditLogs={auditLogs}
+            currentRole="Regional Officer (RO Western)"
+            onRefreshData={refreshFromSupabase}
             onSelectApplication={(app) => setSelectedAppForDossier(app)}
             onNavigateTab={(tab) => {
               setActiveTab(tab);
