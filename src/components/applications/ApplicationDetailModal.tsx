@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   FileText, 
@@ -16,11 +16,12 @@ import {
   Download
 } from 'lucide-react';
 import { Application, ApplicationStage } from '../../types';
+import { getAllowedTransitions, getStageDisplayLabel, isValidTransition } from '../../lib/workflow';
 
 interface ApplicationDetailModalProps {
   application: Application | null;
   onClose: () => void;
-  onUpdateStage: (appId: string, newStage: ApplicationStage, remark: string) => void;
+  onUpdateStage: (appId: string, newStage: ApplicationStage, remark: string) => Promise<{ success: boolean; error?: string } | void> | void;
   onScheduleEVCModal?: (app: Application) => void;
 }
 
@@ -32,21 +33,59 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
 }) => {
   if (!application) return null;
 
-  const [selectedStage, setSelectedStage] = useState<ApplicationStage>(application.currentStage);
+  const allowedTransitions = getAllowedTransitions(application.currentStage);
+  const isTerminal = allowedTransitions.length === 0;
+
+  const [selectedStage, setSelectedStage] = useState<ApplicationStage>(() => {
+    return allowedTransitions.length > 0 ? allowedTransitions[0] : application.currentStage;
+  });
   const [remarkInput, setRemarkInput] = useState<string>('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleStageSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (application) {
+      const transitions = getAllowedTransitions(application.currentStage);
+      setSelectedStage(transitions.length > 0 ? transitions[0] : application.currentStage);
+      setRemarkInput('');
+      setActionSuccess(null);
+      setActionError(null);
+    }
+  }, [application.id, application.currentStage]);
+
+  const handleStageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isTerminal) {
+      setActionError(`Application is in "${application.currentStage}" and has no further forward transitions.`);
+      return;
+    }
+    if (selectedStage === application.currentStage) {
+      setActionError('Please select a valid next stage.');
+      return;
+    }
     if (!remarkInput.trim()) {
       alert('Please enter an official scrutiny remark or reason for stage change.');
       return;
     }
-    onUpdateStage(application.id, selectedStage, remarkInput.trim());
-    setActionSuccess(`Application status successfully updated to "${selectedStage}"`);
-    setTimeout(() => {
-      setActionSuccess(null);
-    }, 3000);
+    if (!isValidTransition(application.currentStage, selectedStage)) {
+      setActionError(`Invalid transition from "${application.currentStage}" to "${selectedStage}".`);
+      return;
+    }
+
+    try {
+      const result = await onUpdateStage(application.id, selectedStage, remarkInput.trim());
+      if (result && result.success === false) {
+        setActionError(result.error || 'Failed to update application stage.');
+        return;
+      }
+      setActionError(null);
+      setActionSuccess(`Application status successfully updated to "${selectedStage}"`);
+      setTimeout(() => {
+        setActionSuccess(null);
+      }, 3000);
+    } catch (err: any) {
+      setActionError(err?.message || 'Error updating stage.');
+    }
   };
 
   return (
@@ -85,6 +124,13 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             <div className="p-3 bg-emerald-50 border border-emerald-300 rounded text-emerald-800 font-semibold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>{actionSuccess}</span>
+            </div>
+          )}
+
+          {actionError && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded text-rose-800 font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span>{actionError}</span>
             </div>
           )}
 
@@ -248,17 +294,21 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                 </label>
                 <select
                   value={selectedStage}
-                  onChange={(e) => setSelectedStage(e.target.value as ApplicationStage)}
-                  className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+                  onChange={(e) => {
+                    setSelectedStage(e.target.value as ApplicationStage);
+                    setActionError(null);
+                  }}
+                  disabled={isTerminal}
+                  className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy disabled:bg-gov-slate-100 disabled:text-gov-slate-500"
                 >
-                  <option value="Scrutiny Pending">Scrutiny Pending</option>
-                  <option value="Scrutiny Completed">Scrutiny Completed</option>
-                  <option value="EVC Pending">EVC Pending (Schedule Committee)</option>
-                  <option value="EVC Scheduled">EVC Scheduled</option>
-                  <option value="SAC Review">SAC Review</option>
-                  <option value="Approved">Approved (Issue Digital EoA)</option>
-                  <option value="Deficiency Issued">Deficiency Issued (Issue Cure Notice)</option>
-                  <option value="Rejected">Rejected</option>
+                  <option value={application.currentStage}>
+                    {getStageDisplayLabel(application.currentStage)} {isTerminal ? '(Completed - No further transitions)' : '(Current Stage)'}
+                  </option>
+                  {allowedTransitions.map((stg) => (
+                    <option key={stg} value={stg}>
+                      {getStageDisplayLabel(stg)}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -295,7 +345,12 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                 )}
                 <button
                   type="submit"
-                  className="bg-gov-navy hover:bg-gov-navy-light text-white font-semibold text-xs px-4 py-1.5 rounded transition-colors shadow-sm"
+                  disabled={isTerminal}
+                  className={`font-semibold text-xs px-4 py-1.5 rounded transition-colors shadow-sm ${
+                    isTerminal
+                      ? 'bg-gov-slate-300 text-gov-slate-500 cursor-not-allowed'
+                      : 'bg-gov-navy hover:bg-gov-navy-light text-white'
+                  }`}
                 >
                   Confirm &amp; Update Stage
                 </button>

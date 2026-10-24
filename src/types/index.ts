@@ -1,7 +1,10 @@
 export type ApplicationStage = 
   | 'Draft'
+  | 'Submitted'
+  | 'Scrutiny'
   | 'Scrutiny Pending'
   | 'Scrutiny Completed'
+  | 'EVC'
   | 'EVC Pending'
   | 'EVC Scheduled'
   | 'EVC Completed'
