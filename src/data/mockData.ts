@@ -1,0 +1,480 @@
+import { Application, EVCVisit, ComplianceRecord, AuditLogItem, ExpertProfile } from '../types';
+
+export const INITIAL_APPLICATIONS: Application[] = [
+  {
+    id: 'app-001',
+    applicationNumber: 'AICTE/2026/WR/1-938201',
+    instituteName: 'Vidyalankar Institute of Technology',
+    instituteCode: 'VIT-MUM-142',
+    state: 'Maharashtra',
+    region: 'Western',
+    applicationType: 'Extension of Approval (EoA)',
+    academicYear: '2026-27',
+    submissionDate: '2026-09-14',
+    currentStage: 'EVC Scheduled',
+    stageProgress: 65,
+    processingDays: 41,
+    isOverdue: false,
+    evcAssigned: true,
+    evcId: 'evc-201',
+    feePaid: 250000,
+    totalIntakeProposed: 720,
+    complianceRating: 'High',
+    contactPerson: 'Dr. Suresh R. Patil (Principal)',
+    contactEmail: 'principal@vit.edu.in',
+    contactPhone: '+91 98201 34521',
+    remarks: 'Scrutiny cleared. Video EVC arranged for robotics lab inspection.',
+    documents: [
+      { name: 'Fire NOC Certificate 2026', verified: true, dateUploaded: '2026-09-15' },
+      { name: 'Land Registry Deed & Lease Extract', verified: true, dateUploaded: '2026-09-15' },
+      { name: 'AICTE Cadre Ratio Affidavit', verified: true, dateUploaded: '2026-09-16' },
+      { name: 'NBA Accreditation Certificate', verified: true, dateUploaded: '2026-09-18' }
+    ]
+  },
+  {
+    id: 'app-002',
+    applicationNumber: 'AICTE/2026/NR/1-847291',
+    instituteName: 'Delhi Technological Institute of Engineering',
+    instituteCode: 'DTIE-DEL-089',
+    state: 'Delhi',
+    region: 'Northern',
+    applicationType: 'Increase in Intake',
+    academicYear: '2026-27',
+    submissionDate: '2026-08-28',
+    currentStage: 'EVC Pending',
+    stageProgress: 45,
+    processingDays: 57,
+    isOverdue: true,
+    evcAssigned: false,
+    feePaid: 325000,
+    totalIntakeProposed: 960,
+    complianceRating: 'Moderate',
+    contactPerson: 'Prof. Arvind Saxena (Dean Academics)',
+    contactEmail: 'academics@dtie.ac.in',
+    contactPhone: '+91 94120 78643',
+    remarks: 'Pending physical visit committee assignment past statutory 45 days.',
+    documents: [
+      { name: 'Municipal Occupancy Certificate', verified: true, dateUploaded: '2026-08-29' },
+      { name: 'Audited Balance Sheets (3 yrs)', verified: true, dateUploaded: '2026-08-30' },
+      { name: 'Faculty List with Form 16', verified: false, dateUploaded: '2026-09-02' }
+    ]
+  },
+  {
+    id: 'app-003',
+    applicationNumber: 'AICTE/2026/SR/1-729482',
+    instituteName: 'Coimbatore Institute of Engineering & Research',
+    instituteCode: 'CIER-TN-310',
+    state: 'Tamil Nadu',
+    region: 'Southern',
+    applicationType: 'Introduction of New Course / Division',
+    academicYear: '2026-27',
+    submissionDate: '2026-10-02',
+    currentStage: 'Scrutiny Completed',
+    stageProgress: 35,
+    processingDays: 22,
+    isOverdue: false,
+    evcAssigned: false,
+    feePaid: 175000,
+    totalIntakeProposed: 120,
+    complianceRating: 'High',
+    contactPerson: 'Dr. Meenakshi Sundaram',
+    contactEmail: 'director@cier.edu.in',
+    contactPhone: '+91 97890 11234',
+    remarks: 'Application verified by RO Chennai. B.Tech Artificial Intelligence proposal.',
+    documents: [
+      { name: 'Curriculum & Syllabi Scheme', verified: true, dateUploaded: '2026-10-03' },
+      { name: 'Computer Center Carpet Area Proof', verified: true, dateUploaded: '2026-10-04' }
+    ]
+  },
+  {
+    id: 'app-004',
+    applicationNumber: 'AICTE/2026/CR/1-654819',
+    instituteName: 'Bhopal National Polytechnic & Science College',
+    instituteCode: 'BNP-MP-045',
+    state: 'Madhya Pradesh',
+    region: 'Central',
+    applicationType: 'Extension of Approval (EoA)',
+    academicYear: '2026-27',
+    submissionDate: '2026-08-15',
+    currentStage: 'Deficiency Issued',
+    stageProgress: 50,
+    processingDays: 70,
+    isOverdue: true,
+    evcAssigned: false,
+    feePaid: 150000,
+    totalIntakeProposed: 480,
+    complianceRating: 'Deficient',
+    contactPerson: 'Dr. Vinay Kumar Shrivastava',
+    contactEmail: 'polytechnic.bhopal@gov.mp.in',
+    contactPhone: '+91 94250 88912',
+    remarks: 'Building safety certificate expired in July 2026. 15-day cure notice issued.',
+    documents: [
+      { name: 'Fire NOC Certificate (Expired)', verified: false, dateUploaded: '2026-08-16' },
+      { name: 'Society Registration Certificate', verified: true, dateUploaded: '2026-08-16' }
+    ]
+  },
+  {
+    id: 'app-005',
+    applicationNumber: 'AICTE/2026/SWR/1-992384',
+    instituteName: 'Bangalore Academy of Technology & Management',
+    instituteCode: 'BATM-KAR-771',
+    state: 'Karnataka',
+    region: 'South-Western',
+    applicationType: 'Extension of Approval (EoA)',
+    academicYear: '2026-27',
+    submissionDate: '2026-07-20',
+    currentStage: 'Approved',
+    stageProgress: 100,
+    processingDays: 32,
+    isOverdue: false,
+    evcAssigned: true,
+    evcId: 'evc-104',
+    feePaid: 250000,
+    totalIntakeProposed: 1080,
+    complianceRating: 'High',
+    contactPerson: 'Dr. C. K. Narayana Murthy',
+    contactEmail: 'approvals@batm.edu.in',
+    contactPhone: '+91 99000 44321',
+    remarks: 'Approval Letter dispatched digitally with cryptographic signature.',
+    documents: [
+      { name: 'Final EVC Clean Verification Report', verified: true, dateUploaded: '2026-08-10' },
+      { name: 'Sanction Letter 2026-27', verified: true, dateUploaded: '2026-08-22' }
+    ]
+  },
+  {
+    id: 'app-006',
+    applicationNumber: 'AICTE/2026/ER/1-419082',
+    instituteName: 'Kolkata Institute of Pharmaceutical Sciences',
+    instituteCode: 'KIPS-WB-118',
+    state: 'West Bengal',
+    region: 'Eastern',
+    applicationType: 'New Technical Institution',
+    academicYear: '2026-27',
+    submissionDate: '2026-09-05',
+    currentStage: 'SAC Review',
+    stageProgress: 85,
+    processingDays: 49,
+    isOverdue: false,
+    evcAssigned: true,
+    evcId: 'evc-208',
+    feePaid: 500000,
+    totalIntakeProposed: 100,
+    complianceRating: 'High',
+    contactPerson: 'Dr. Ananya Mukherjee',
+    contactEmail: 'director@kips.edu.in',
+    contactPhone: '+91 98300 76512',
+    remarks: 'Standing Appellate Committee review underway for machine room floor clearance.',
+    documents: [
+      { name: 'PCI NOC Concurrence', verified: true, dateUploaded: '2026-09-06' },
+      { name: 'Pollution Control Board Clearance', verified: true, dateUploaded: '2026-09-08' }
+    ]
+  },
+  {
+    id: 'app-007',
+    applicationNumber: 'AICTE/2026/WR/1-773821',
+    instituteName: 'Pune Engineering College of Technology',
+    instituteCode: 'PECT-PUN-029',
+    state: 'Maharashtra',
+    region: 'Western',
+    applicationType: 'Increase in Intake',
+    academicYear: '2026-27',
+    submissionDate: '2026-09-22',
+    currentStage: 'Scrutiny Pending',
+    stageProgress: 20,
+    processingDays: 32,
+    isOverdue: false,
+    evcAssigned: false,
+    feePaid: 200000,
+    totalIntakeProposed: 840,
+    complianceRating: 'Moderate',
+    contactPerson: 'Dr. Rajendra Kulkarni',
+    contactEmail: 'dean@pect.ac.in',
+    contactPhone: '+91 98220 54399',
+    remarks: 'Under initial scrutiny check at Western Regional Office.',
+    documents: [
+      { name: 'Building Blueprint Endorsement', verified: false, dateUploaded: '2026-09-23' },
+      { name: 'Affiliation Letter from State Technical Univ', verified: true, dateUploaded: '2026-09-24' }
+    ]
+  }
+];
+
+export const INITIAL_EVC_VISITS: EVCVisit[] = [
+  {
+    id: 'evc-201',
+    visitCode: 'EVC/WR/2026/089',
+    applicationNumber: 'AICTE/2026/WR/1-938201',
+    instituteName: 'Vidyalankar Institute of Technology',
+    instituteCode: 'VIT-MUM-142',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    visitDate: '2026-10-28',
+    visitTime: '10:30 AM IST',
+    visitMode: 'Virtual Video EVC',
+    status: 'Scheduled',
+    chairman: 'Prof. (Dr.) Amitabh Mohanty (IIT Bombay)',
+    experts: ['Dr. Savita Deshpande (VJTI Mumbai)', 'Prof. K. N. Sridhar (NIT Surat)'],
+    convenor: 'Shri Manoj Sharma (Assistant Director, RO Mumbai)',
+    meetingLink: 'https://evc-meet.aicte-india.org/room/wr-vit-938201',
+    instructions: 'Geo-tagged live video streaming required from Advanced Robotics Lab and 3rd Floor Server Room.',
+    criticalFindings: 'Awaiting inspection execution.'
+  },
+  {
+    id: 'evc-208',
+    visitCode: 'EVC/ER/2026/044',
+    applicationNumber: 'AICTE/2026/ER/1-419082',
+    instituteName: 'Kolkata Institute of Pharmaceutical Sciences',
+    instituteCode: 'KIPS-WB-118',
+    city: 'Kolkata',
+    state: 'West Bengal',
+    visitDate: '2026-10-18',
+    visitTime: '11:00 AM IST',
+    visitMode: 'Physical On-Site',
+    status: 'Report Submitted',
+    chairman: 'Prof. S. C. Bhattacharya (Jadavpur University)',
+    experts: ['Dr. Tapas Ghosh (NIPER Kolkata)', 'Prof. Nilanjana Roy (Calcutta Univ)'],
+    convenor: 'Smt. Debashree Sen (RO Kolkata)',
+    instructions: 'On-site verification of chemistry labs, ventilation shafts, and animal house clearances.',
+    criticalFindings: 'Lab area meets AICTE norm (210 sq.m). Verified and forwarded to SAC.'
+  },
+  {
+    id: 'evc-210',
+    visitCode: 'EVC/NR/2026/112',
+    applicationNumber: 'AICTE/2026/NR/1-847291',
+    instituteName: 'Delhi Technological Institute of Engineering',
+    instituteCode: 'DTIE-DEL-089',
+    city: 'New Delhi',
+    state: 'Delhi',
+    visitDate: '2026-11-04',
+    visitTime: '09:30 AM IST',
+    visitMode: 'Physical On-Site',
+    status: 'Scheduled',
+    chairman: 'Prof. R. P. Singh (DTU Delhi)',
+    experts: ['Prof. Manisha Verma (IIT Delhi)', 'Dr. Harish Chander (NIT Kurukshetra)'],
+    convenor: 'Shri Vikram Malhotra (RO Chandigarh)',
+    instructions: 'Physical verification of newly constructed wing for CSE & Data Science intake expansion.',
+    criticalFindings: 'Committee members accepted duty.'
+  }
+];
+
+export const INITIAL_COMPLIANCE: ComplianceRecord[] = [
+  {
+    id: 'comp-101',
+    instituteCode: 'BNP-MP-045',
+    instituteName: 'Bhopal National Polytechnic & Science College',
+    applicationNumber: 'AICTE/2026/CR/1-654819',
+    category: 'Building Occupancy / Fire NOC',
+    title: 'Fire Safety NOC & Life Safety Code 2026',
+    validUntil: '2026-07-31',
+    daysRemaining: -85,
+    urgency: 'Critical Expired',
+    status: 'Non-Compliant',
+    lastAuditDate: '2026-08-15',
+    actionRequired: 'Submit certified Municipal Fire NOC within 7 days or face intake freeze.'
+  },
+  {
+    id: 'comp-102',
+    instituteCode: 'DTIE-DEL-089',
+    instituteName: 'Delhi Technological Institute of Engineering',
+    applicationNumber: 'AICTE/2026/NR/1-847291',
+    category: 'Land Lease & Title Deed',
+    title: 'Campus Master Lease Agreement (30-year deed)',
+    validUntil: '2026-11-15',
+    daysRemaining: 22,
+    urgency: 'Expiring Soon',
+    status: 'Renewal Pending',
+    lastAuditDate: '2026-09-01',
+    actionRequired: 'Provide registered lease extension document with sub-registrar seal.'
+  },
+  {
+    id: 'comp-103',
+    instituteCode: 'VIT-MUM-142',
+    instituteName: 'Vidyalankar Institute of Technology',
+    applicationNumber: 'AICTE/2026/WR/1-938201',
+    category: 'NBA / NAAC Accreditation',
+    title: 'NBA Tier-1 Accreditation (Computer & IT Dept)',
+    validUntil: '2026-12-31',
+    daysRemaining: 68,
+    urgency: 'Expiring Soon',
+    status: 'Renewal Pending',
+    lastAuditDate: '2026-09-20',
+    actionRequired: 'SAR self-assessment report submission to NBA portal for cycle renewal.'
+  },
+  {
+    id: 'comp-104',
+    instituteCode: 'CIER-TN-310',
+    instituteName: 'Coimbatore Institute of Engineering & Research',
+    applicationNumber: 'AICTE/2026/SR/1-729482',
+    category: 'Faculty Cadre & AICTE Pay Scales',
+    title: 'Cadre Ratio 1:2:6 & 7th Central Pay Commission',
+    validUntil: '2027-03-31',
+    daysRemaining: 158,
+    urgency: 'Normal',
+    status: 'Compliant',
+    lastAuditDate: '2026-10-02',
+    actionRequired: 'Annual affidavit verified. Next audit due in Q1 2027.'
+  },
+  {
+    id: 'comp-105',
+    instituteCode: 'PECT-PUN-029',
+    instituteName: 'Pune Engineering College of Technology',
+    applicationNumber: 'AICTE/2026/WR/1-773821',
+    category: 'Barrier Free Built Environment',
+    title: 'Divyangjan Accessibility & Lift Certificate',
+    validUntil: '2026-11-05',
+    daysRemaining: 12,
+    urgency: 'Expiring Soon',
+    status: 'Notice Dispatched',
+    lastAuditDate: '2026-10-05',
+    actionRequired: 'Provide updated fitness inspection certificate for tactile paving & accessible elevators.'
+  }
+];
+
+export const INITIAL_AUDIT_LOGS: AuditLogItem[] = [
+  {
+    id: 'aud-901',
+    timestamp: '2026-10-24 11:42 AM IST',
+    actor: 'Dr. Ramesh Chandra',
+    role: 'Regional Officer (RO)',
+    action: 'EVC Visit Scheduled',
+    applicationNumber: 'AICTE/2026/WR/1-938201',
+    instituteName: 'Vidyalankar Institute of Technology',
+    details: 'Virtual Video EVC scheduled for 28 Oct 2026. Experts Prof. Amitabh Mohanty & team notified.'
+  },
+  {
+    id: 'aud-902',
+    timestamp: '2026-10-23 04:15 PM IST',
+    actor: 'System Automated',
+    role: 'System Automated',
+    action: 'Compliance Alert Generated',
+    applicationNumber: 'AICTE/2026/NR/1-847291',
+    instituteName: 'Delhi Technological Institute of Engineering',
+    details: 'Triggered 30-day notice for expiring campus land lease deed expiring 15-Nov-2026.'
+  },
+  {
+    id: 'aud-903',
+    timestamp: '2026-10-22 02:30 PM IST',
+    actor: 'Prof. S. C. Bhattacharya',
+    role: 'EVC Chairman',
+    action: 'Inspection Report Submitted',
+    applicationNumber: 'AICTE/2026/ER/1-419082',
+    instituteName: 'Kolkata Institute of Pharmaceutical Sciences',
+    details: 'Submitted physical inspection verification report ER/2026/044 to Member Secretary portal.'
+  },
+  {
+    id: 'aud-904',
+    timestamp: '2026-10-20 10:10 AM IST',
+    actor: 'Shri A. K. Sen',
+    role: 'Scrutiny Officer',
+    action: 'Deficiency Notice Issued',
+    applicationNumber: 'AICTE/2026/CR/1-654819',
+    instituteName: 'Bhopal National Polytechnic & Science College',
+    details: 'Issued formal show-cause letter regarding lapsed municipal Fire NOC certificate.'
+  },
+  {
+    id: 'aud-905',
+    timestamp: '2026-10-18 05:22 PM IST',
+    actor: 'Member Secretary AICTE',
+    role: 'Member Secretary',
+    action: 'Approval Order Dispatched',
+    applicationNumber: 'AICTE/2026/SWR/1-992384',
+    instituteName: 'Bangalore Academy of Technology & Management',
+    details: 'Digitally signed Extension of Approval order for academic session 2026-27 released.'
+  }
+];
+
+export const INITIAL_EXPERTS: ExpertProfile[] = [
+  {
+    id: 'exp-1',
+    name: 'Prof. (Dr.) Amitabh Mohanty',
+    designation: 'Senior Professor & Former HOD',
+    institution: 'Indian Institute of Technology Bombay',
+    discipline: 'Mechanical & Automation Engineering',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    completedVisits: 38,
+    status: 'Assigned',
+    rating: 4.9
+  },
+  {
+    id: 'exp-2',
+    name: 'Prof. Manisha Verma',
+    designation: 'Professor of Computer Science',
+    institution: 'Indian Institute of Technology Delhi',
+    discipline: 'Computer Science & AI',
+    city: 'New Delhi',
+    state: 'Delhi',
+    completedVisits: 24,
+    status: 'Available',
+    rating: 4.8
+  },
+  {
+    id: 'exp-3',
+    name: 'Dr. Savita Deshpande',
+    designation: 'Associate Dean of Infrastructure',
+    institution: 'VJTI Mumbai',
+    discipline: 'Civil & Environmental Engineering',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    completedVisits: 19,
+    status: 'Assigned',
+    rating: 4.7
+  },
+  {
+    id: 'exp-4',
+    name: 'Prof. R. P. Singh',
+    designation: 'Director & Chair Professor',
+    institution: 'Delhi Technological University',
+    discipline: 'Electrical & Electronics',
+    city: 'New Delhi',
+    state: 'Delhi',
+    completedVisits: 45,
+    status: 'Available',
+    rating: 4.9
+  }
+];
+
+// LocalStorage helpers to preserve data & allow dynamic mutations
+const STORAGE_KEYS = {
+  APPLICATIONS: 'aicte_portal_applications',
+  EVC_VISITS: 'aicte_portal_evc_visits',
+  COMPLIANCE: 'aicte_portal_compliance',
+  AUDIT_LOGS: 'aicte_portal_audit_logs',
+  EXPERTS: 'aicte_portal_experts'
+};
+
+export function loadData<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      localStorage.setItem(key, JSON.stringify(fallback));
+      return fallback;
+    }
+    return JSON.parse(raw) as T;
+  } catch (e) {
+    console.warn(`Error loading localStorage key "${key}":`, e);
+    return fallback;
+  }
+}
+
+export function saveData<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error(`Error saving localStorage key "${key}":`, e);
+  }
+}
+
+export const getStoredApplications = () => loadData(STORAGE_KEYS.APPLICATIONS, INITIAL_APPLICATIONS);
+export const saveStoredApplications = (apps: Application[]) => saveData(STORAGE_KEYS.APPLICATIONS, apps);
+
+export const getStoredEVCVisits = () => loadData(STORAGE_KEYS.EVC_VISITS, INITIAL_EVC_VISITS);
+export const saveStoredEVCVisits = (visits: EVCVisit[]) => saveData(STORAGE_KEYS.EVC_VISITS, visits);
+
+export const getStoredCompliance = () => loadData(STORAGE_KEYS.COMPLIANCE, INITIAL_COMPLIANCE);
+export const saveStoredCompliance = (records: ComplianceRecord[]) => saveData(STORAGE_KEYS.COMPLIANCE, records);
+
+export const getStoredAuditLogs = () => loadData(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+export const saveStoredAuditLogs = (logs: AuditLogItem[]) => saveData(STORAGE_KEYS.AUDIT_LOGS, logs);
+
+export const getStoredExperts = () => loadData(STORAGE_KEYS.EXPERTS, INITIAL_EXPERTS);
+export const saveStoredExperts = (experts: ExpertProfile[]) => saveData(STORAGE_KEYS.EXPERTS, experts);
