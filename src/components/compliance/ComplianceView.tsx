@@ -15,6 +15,7 @@ import {
   Download
 } from 'lucide-react';
 import { ComplianceRecord } from '../../types';
+import { UndertakingsManagement } from './UndertakingsManagement';
 
 interface ComplianceViewProps {
   complianceRecords: ComplianceRecord[];
@@ -27,6 +28,8 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
   onUpdateCompliance,
   onOpenTrackModal,
 }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'records' | 'undertakings'>('records');
+  const [selectedComplianceId, setSelectedComplianceId] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [filterUrgency, setFilterUrgency] = useState<string>('All');
   const [search, setSearch] = useState<string>('');
@@ -82,8 +85,49 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm">
+      {/* Sub-navigation tabs: Statutory Records vs Institutional Undertakings */}
+      <div className="flex border-b border-gov-slate-200 gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSubTab('records');
+            setSelectedComplianceId(null);
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t border-b-2 transition-all ${
+            activeSubTab === 'records'
+              ? 'border-gov-navy text-gov-navy bg-white shadow-xs font-bold'
+              : 'border-transparent text-gov-slate-500 hover:text-gov-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4" />
+          <span>Statutory Compliance Records</span>
+          <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-gov-slate-200 text-gov-slate-700 font-bold">
+            {complianceRecords.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('undertakings')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t border-b-2 transition-all ${
+            activeSubTab === 'undertakings'
+              ? 'border-gov-navy text-gov-navy bg-white shadow-xs font-bold'
+              : 'border-transparent text-gov-slate-500 hover:text-gov-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Institutional Undertakings &amp; Escalation</span>
+          <span className="ml-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold">
+            Live Tracking
+          </span>
+        </button>
+      </div>
+
+      {/* Sub-Tab 1: Existing Compliance Records View */}
+      {activeSubTab === 'records' && (
+        <>
+          {/* Filter and Search Bar */}
+          <div className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-gov-slate-400 absolute left-3 top-2.5" />
@@ -191,17 +235,43 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
                 <ExternalLink className="w-3 h-3" />
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActionRecord(record)}
-                className="bg-gov-navy hover:bg-gov-navy-light text-white font-semibold px-3 py-1.5 rounded transition-colors"
-              >
-                Take Regulatory Action
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedComplianceId(record.id);
+                    setActiveSubTab('undertakings');
+                  }}
+                  className="border border-gov-slate-300 hover:bg-gov-slate-100 text-gov-slate-700 font-semibold px-2.5 py-1.5 rounded transition-colors flex items-center gap-1 text-xs"
+                >
+                  <FileText className="w-3.5 h-3.5 text-gov-slate-500" />
+                  <span>Undertakings</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActionRecord(record)}
+                  className="bg-gov-navy hover:bg-gov-navy-light text-white font-semibold px-3 py-1.5 rounded transition-colors"
+                >
+                  Take Regulatory Action
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
+      </>
+      )}
+
+      {/* Sub-Tab 2: Institutional Undertakings & Escalation View */}
+      {activeSubTab === 'undertakings' && (
+        <UndertakingsManagement
+          complianceRecords={complianceRecords}
+          onOpenTrackModal={onOpenTrackModal}
+          selectedComplianceId={selectedComplianceId}
+          onClearSelectedCompliance={() => setSelectedComplianceId(null)}
+        />
+      )}
 
       {/* Regulatory Action Modal */}
       {actionRecord && (
