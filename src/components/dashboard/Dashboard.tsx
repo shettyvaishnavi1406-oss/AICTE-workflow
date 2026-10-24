@@ -16,15 +16,22 @@ import {
   ExternalLink,
   History,
   FileBadge,
-  Eye
+  Eye,
+  RefreshCw,
+  X,
+  Play,
+  CheckCircle
 } from 'lucide-react';
-import { Application, EVCVisit, ComplianceRecord, AuditLogItem } from '../../types';
+import { Application, EVCVisit, ComplianceRecord, AuditLogItem, EscalationEngineSummary } from '../../types';
+import { runDailyEscalationEngine } from '../../services/escalationService';
 
 interface DashboardProps {
   applications: Application[];
   evcVisits: EVCVisit[];
   complianceRecords: ComplianceRecord[];
   auditLogs: AuditLogItem[];
+  currentRole?: string;
+  onRefreshData?: () => void;
   onSelectApplication: (app: Application) => void;
   onNavigateTab: (tab: any) => void;
   onOpenTrackModal: (appNum?: string) => void;
@@ -35,6 +42,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   evcVisits,
   complianceRecords,
   auditLogs,
+  currentRole = 'Regional Officer (RO Western)',
+  onRefreshData,
   onSelectApplication,
   onNavigateTab,
   onOpenTrackModal,
@@ -42,6 +51,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('All');
   const [regionFilter, setRegionFilter] = useState<string>('All');
+
+  // Escalation engine state
+  const [isRunningEngine, setIsRunningEngine] = useState(false);
+  const [engineSummary, setEngineSummary] = useState<EscalationEngineSummary | null>(null);
+  const [engineError, setEngineError] = useState<string | null>(null);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+
+  // Trigger daily server-side escalation engine
+  const handleRunDailyCheck = async () => {
+    // 1. Authorization check: Regional Officer, Scrutiny Officer, Member Secretary, System
+    const isAuthorized = 
+      currentRole.includes('Regional Officer') ||
+      currentRole.includes('Scrutiny') ||
+      currentRole.includes('Member Secretary') ||
+      currentRole.includes('System') ||
+      currentRole.includes('Admin');
+
+    if (!isAuthorized) {
+      alert(`Access Denied: Your current role "${currentRole}" is not authorized to trigger statutory escalation runs.`);
+      return;
+    }
+
+    try {
+      setIsRunningEngine(true);
+      setEngineError(null);
+      setEngineSummary(null);
+
+      // Invoke real server-side engine
+      const summary = await runDailyEscalationEngine();
+      setEngineSummary(summary);
+      setShowSummaryModal(true);
+
+      // Notify parent to refresh records if callback provided
+      if (onRefreshData) {
+        onRefreshData();
+      }
+    } catch (err: any) {
+      console.error('Daily check execution error:', err);
+      setEngineError(err.message || 'Escalation engine execution failed');
+      setShowSummaryModal(true);
+    } finally {
+      setIsRunningEngine(false);
+    }
+  };
 
   // Derive metrics dynamically from demo records
   const totalApps = applications.length;
@@ -97,6 +150,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Real Server-Side Daily Check Button */}
+            <button
+              type="button"
+              id="run-daily-escalation-check-btn"
+              onClick={handleRunDailyCheck}
+              disabled={isRunningEngine}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded shadow-sm border transition-all ${
+                isRunningEngine
+                  ? 'bg-slate-100 text-slate-400 border-slate-300 cursor-not-allowed'
+                  : 'bg-white hover:bg-slate-50 text-gov-navy border-gov-navy/40 hover:border-gov-navy hover:shadow-xs active:scale-[0.99]'
+              }`}
+              title="Execute server-side statutory compliance and undertakings escalation engine"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-gov-navy ${isRunningEngine ? 'animate-spin text-amber-600' : ''}`} />
+              <span>{isRunningEngine ? 'Running Engine...' : 'Run Daily Check'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => onNavigateTab('applications')}
@@ -116,6 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
 
       {/* 5 Key Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -624,8 +695,146 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
           ))}
+      {/* Execution Summary Modal */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl border border-gov-slate-300 max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in duration-150">
+            {/* Modal Header */}
+            <div className="bg-gov-navy text-white px-5 py-4 flex items-center justify-between border-b border-gov-navy-dark">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                  <ShieldAlert className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight">Statutory Escalation Engine</h3>
+                  <p className="text-[11px] text-blue-200">Backend Server-Side Execution Report</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(false)}
+                className="text-white/70 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {engineError ? (
+                <div className="bg-rose-50 border border-rose-300 text-rose-900 p-3.5 rounded-lg flex items-start gap-2.5">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-xs">Engine Execution Failure</div>
+                    <div className="text-[11px] mt-0.5 text-rose-800">{engineError}</div>
+                  </div>
+                </div>
+              ) : engineSummary ? (
+                <>
+                  {/* Status Banner */}
+                  <div className="flex items-center justify-between bg-slate-50 border border-gov-slate-200 rounded p-2.5 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="font-semibold text-gov-slate-700">Execution Status:</span>
+                      <span className="text-emerald-700 font-bold">Live Backend Run Completed</span>
+                    </div>
+                    <div className="text-gov-slate-500 font-mono text-[10px]">
+                      Eval Date: {engineSummary.evaluation_date}
+                    </div>
+                  </div>
+
+                  {/* 4 Metric Counters */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                    <div className="bg-blue-50/50 border border-blue-200 rounded p-2.5">
+                      <div className="text-[10px] uppercase font-bold text-blue-800">Evaluated</div>
+                      <div className="text-xl font-extrabold text-blue-900 mt-0.5">{engineSummary.records_checked}</div>
+                      <div className="text-[9px] text-blue-700">All Database Records</div>
+                    </div>
+                    <div className="bg-amber-50/50 border border-amber-200 rounded p-2.5">
+                      <div className="text-[10px] uppercase font-bold text-amber-800">R1 Reminders</div>
+                      <div className="text-xl font-extrabold text-amber-900 mt-0.5">{engineSummary.reminders_created}</div>
+                      <div className="text-[9px] text-amber-700">Institution In-App</div>
+                    </div>
+                    <div className="bg-rose-50/50 border border-rose-200 rounded p-2.5">
+                      <div className="text-[10px] uppercase font-bold text-rose-800">Escalations</div>
+                      <div className="text-xl font-extrabold text-rose-900 mt-0.5">{engineSummary.escalations_performed}</div>
+                      <div className="text-[9px] text-rose-700">RO / MS Assigned</div>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded p-2.5">
+                      <div className="text-[10px] uppercase font-bold text-slate-700">Errors</div>
+                      <div className="text-xl font-extrabold text-slate-800 mt-0.5">{engineSummary.errors_count}</div>
+                      <div className="text-[9px] text-slate-600">Isolated Exceptions</div>
+                    </div>
+                  </div>
+
+                  {/* Triggered Actions Breakdown */}
+                  <div>
+                    <div className="font-bold text-gov-slate-800 mb-2 flex items-center justify-between text-xs">
+                      <span>Actions Executed in this Cycle</span>
+                      <span className="text-[10px] font-normal text-gov-slate-500">
+                        {engineSummary.details?.length || 0} transitions
+                      </span>
+                    </div>
+
+                    {engineSummary.details && engineSummary.details.length > 0 ? (
+                      <div className="border border-gov-slate-200 rounded divide-y divide-gov-slate-200 max-h-48 overflow-y-auto">
+                        {engineSummary.details.map((item, idx) => (
+                          <div key={idx} className="p-2.5 bg-white text-xs flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-gov-navy text-[11px] font-mono">
+                                  [{item.rule}] {item.record_id}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                                  {item.record_type === 'compliance_record' ? 'Compliance Doc' : 'Undertaking'}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gov-slate-700 mt-0.5">
+                                {item.action}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                L{item.previous_level} → L{item.new_level}
+                              </span>
+                              <div className="text-[10px] text-gov-slate-500 mt-0.5">{item.recipient}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+                        <CheckCircle className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                        <div className="font-semibold text-emerald-900 text-xs">Idempotent Run Verified</div>
+                        <div className="text-[11px] text-emerald-700 mt-0.5">
+                          All active records are already at their correct escalation levels. No duplicate audit events or duplicate notifications were generated for the current deadline cycle.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Audit Ledger Notice */}
+                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded text-[10px] text-gov-slate-600 leading-relaxed">
+                    <span className="font-bold text-gov-navy">Immutable Audit Trail:</span> All rule calculations, transitions, and recipient assignments are permanently written to Supabase tables <code className="font-mono bg-white px-1 py-0.5 border rounded">escalation_audit_logs</code>, <code className="font-mono bg-white px-1 py-0.5 border rounded">in_app_notifications</code>, and institutional <code className="font-mono bg-white px-1 py-0.5 border rounded">audit_logs</code>. External email/SMS is not configured; records exist persistently in-app.
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gov-slate-50 px-5 py-3 border-t border-gov-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowSummaryModal(false)}
+                className="bg-gov-navy hover:bg-gov-navy-light text-white text-xs font-semibold px-4 py-1.5 rounded shadow-sm transition-colors"
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
         </div>
-      </div> */}
+      )}
     </div>
   );
 };
+
