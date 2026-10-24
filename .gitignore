@@ -1,11 +1,23 @@
-node_modules
-dist
-dist-ssr
+
+node_modules/
+dist/
+dist-ssr/
 *.local
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Editor settings
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
+
+# Operating system files
 .DS_Store
+
+# IDE and build files
 *.suo
 *.ntvs*
 *.njsproj
