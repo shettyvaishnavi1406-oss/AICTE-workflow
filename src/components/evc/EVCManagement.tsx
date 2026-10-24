@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  CalendarClock, 
-  Video, 
-  MapPin, 
-  UserCheck, 
-  Plus, 
-  Search, 
-  ExternalLink, 
-  Clock, 
+import {
+  CalendarClock,
+  Video,
+  MapPin,
+  UserCheck,
+  Plus,
+  Search,
+  ExternalLink,
+  Clock,
   FileCheck2,
   Users,
   CheckCircle2,
@@ -75,10 +75,8 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-gov-navy bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-900">
-                Committee Inspections
-              </span>
-              <span className="text-xs text-gov-slate-500">Teammate Domain (EVC &amp; Experts)</span>
+
+
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gov-navy mt-1">
               Expert Visit Committee (EVC) Management
@@ -118,9 +116,8 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
             <div key={exp.id} className="border border-gov-slate-200 rounded p-3 bg-gov-slate-50 text-xs">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-gov-navy truncate">{exp.name}</span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                  exp.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                }`}>
+                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${exp.status === 'Available' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
                   {exp.status}
                 </span>
               </div>
@@ -151,11 +148,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                     <span className="font-mono text-xs font-bold text-gov-navy bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                       {visit.visitCode}
                     </span>
-                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
-                      visit.visitMode === 'Virtual Video EVC'
-                        ? 'bg-purple-50 text-purple-700 border-purple-200'
-                        : 'bg-blue-50 text-blue-700 border-blue-200'
-                    }`}>
+                    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${visit.visitMode === 'Virtual Video EVC'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
                       {visit.visitMode}
                     </span>
                     <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300">

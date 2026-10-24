@@ -248,9 +248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Compact Service Overview (4 Core Pillars) */}
       <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-10">
-          <span className="text-xs font-bold uppercase tracking-wider text-gov-saffron-dark bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-            Integrated Institutional Services
-          </span>
+
           <h2 className="text-2xl sm:text-3xl font-bold text-gov-navy mt-2">
             AICTE Regulatory Services &amp; Workflow Modules
           </h2>

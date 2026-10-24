@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  FileText, 
-  CalendarClock, 
-  ShieldAlert, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
-  Building2, 
-  Search, 
-  Filter, 
-  ArrowUpRight, 
-  ChevronRight, 
-  Video, 
-  MapPin, 
+import {
+  FileText,
+  CalendarClock,
+  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Building2,
+  Search,
+  Filter,
+  ArrowUpRight,
+  ChevronRight,
+  Video,
+  MapPin,
   ExternalLink,
   History,
   FileBadge,
@@ -54,17 +54,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Stage pendency breakdown
   const stages = [
-    { label: 'Scrutiny', count: applications.filter(a => a.currentStage.includes('Scrutiny')).length, color: 'bg-blue-600' },
-    { label: 'EVC Pending', count: applications.filter(a => a.currentStage === 'EVC Pending').length, color: 'bg-amber-500' },
-    { label: 'EVC Scheduled', count: applications.filter(a => a.currentStage === 'EVC Scheduled').length, color: 'bg-purple-600' },
-    { label: 'SAC Review', count: applications.filter(a => a.currentStage === 'SAC Review').length, color: 'bg-indigo-600' },
-    { label: 'Approved', count: applications.filter(a => a.currentStage === 'Approved').length, color: 'bg-emerald-600' },
-    { label: 'Deficiency', count: applications.filter(a => a.currentStage === 'Deficiency Issued').length, color: 'bg-rose-600' },
+    { label: 'Scrutiny', count: applications.filter(a => a.currentStage.includes('Scrutiny')).length, color: 'bg-[#f5d7b0]' },
+    { label: 'EVC Pending', count: applications.filter(a => a.currentStage === 'EVC Pending').length, color: 'bg-[#d15b56]' },
+    { label: 'EVC Scheduled', count: applications.filter(a => a.currentStage === 'EVC Scheduled').length, color: 'bg-[#007896]' },
+    { label: 'SAC Review', count: applications.filter(a => a.currentStage === 'SAC Review').length, color: 'bg-[#7ba8a3]' },
+    { label: 'Approved', count: applications.filter(a => a.currentStage === 'Approved').length, color: 'bg-[#3e909d]' },
+    { label: 'Deficiency', count: applications.filter(a => a.currentStage === 'Deficiency Issued').length, color: 'bg-[#c43138]' },
   ];
 
   // Filtered applications table
   const filteredApps = applications.filter((app) => {
-    const matchesSearch = 
+    const matchesSearch =
       app.applicationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.instituteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -120,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* 5 Key Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Metric 1 */}
-        <div 
+        <div
           onClick={() => onNavigateTab('applications')}
           className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm hover:border-gov-navy cursor-pointer transition-colors"
         >
@@ -138,7 +138,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Metric 2 */}
-        <div 
+        <div
           onClick={() => {
             setStageFilter('Scrutiny Completed');
             onNavigateTab('applications');
@@ -159,7 +159,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Metric 3 */}
-        <div 
+        <div
           onClick={() => onNavigateTab('evc')}
           className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm hover:border-gov-navy cursor-pointer transition-colors"
         >
@@ -177,7 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Metric 4 */}
-        <div 
+        <div
           onClick={() => onNavigateTab('applications')}
           className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm hover:border-gov-navy cursor-pointer transition-colors"
         >
@@ -195,7 +195,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Metric 5 */}
-        <div 
+        <div
           onClick={() => onNavigateTab('compliance')}
           className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm hover:border-gov-navy cursor-pointer transition-colors"
         >
@@ -288,18 +288,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-gov-navy">{visit.visitCode}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        visit.visitMode === 'Virtual Video EVC'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
-                      }`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${visit.visitMode === 'Virtual Video EVC'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
                         {visit.visitMode}
                       </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        visit.status === 'Scheduled'
-                          ? 'bg-amber-50 text-amber-800 border-amber-300'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                      }`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${visit.status === 'Scheduled'
+                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        }`}>
                         {visit.status}
                       </span>
                     </div>
@@ -374,8 +372,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="divide-y divide-gov-slate-200 p-2 space-y-2">
             {/* Overdue Application Alerts */}
             {overdueApps.map((app) => (
-              <div 
-                key={app.id} 
+              <div
+                key={app.id}
                 onClick={() => onSelectApplication(app)}
                 className="p-3 rounded border border-rose-200 bg-rose-50/50 hover:bg-rose-50 cursor-pointer transition-colors"
               >
@@ -392,17 +390,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Expiring Lease / Fire Safety Alerts */}
             {criticalCompliance.slice(0, 2).map((comp) => (
-              <div 
+              <div
                 key={comp.id}
                 onClick={() => onNavigateTab('compliance')}
                 className="p-3 rounded border border-amber-200 bg-amber-50/50 hover:bg-amber-50 cursor-pointer transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                    comp.urgency === 'Critical Expired'
-                      ? 'bg-rose-100 text-rose-800 border-rose-200'
-                      : 'bg-amber-100 text-amber-800 border-amber-200'
-                  }`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${comp.urgency === 'Critical Expired'
+                    ? 'bg-rose-100 text-rose-800 border-rose-200'
+                    : 'bg-amber-100 text-amber-800 border-amber-200'
+                    }`}>
                     {comp.urgency} ({comp.daysRemaining > 0 ? `${comp.daysRemaining} days remaining` : 'Expired'})
                   </span>
                   <span className="text-[10px] text-gov-slate-500">{comp.category}</span>
@@ -525,8 +522,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </tr>
               ) : (
                 filteredApps.map((app) => (
-                  <tr 
-                    key={app.id} 
+                  <tr
+                    key={app.id}
                     className="hover:bg-blue-50/40 transition-colors cursor-pointer"
                     onClick={() => onSelectApplication(app)}
                   >
@@ -551,17 +548,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {app.applicationType}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={`badge-stage ${
-                        app.currentStage === 'Approved'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                          : app.currentStage === 'Deficiency Issued'
+                      <span className={`badge-stage ${app.currentStage === 'Approved'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : app.currentStage === 'Deficiency Issued'
                           ? 'bg-rose-50 text-rose-800 border-rose-300'
                           : app.currentStage === 'EVC Scheduled'
-                          ? 'bg-purple-50 text-purple-800 border-purple-300'
-                          : app.currentStage === 'EVC Pending'
-                          ? 'bg-amber-50 text-amber-800 border-amber-300'
-                          : 'bg-blue-50 text-blue-800 border-blue-300'
-                      }`}>
+                            ? 'bg-purple-50 text-purple-800 border-purple-300'
+                            : app.currentStage === 'EVC Pending'
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-blue-50 text-blue-800 border-blue-300'
+                        }`}>
                         {app.currentStage}
                       </span>
                     </td>
@@ -596,7 +592,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Recent Activity and Audit History */}
-      <div className="bg-white rounded-lg border border-gov-slate-200 shadow-sm p-5">
+      {/* <div className="bg-white rounded-lg border border-gov-slate-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-gov-navy" />
@@ -629,7 +625,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

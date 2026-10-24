@@ -54,21 +54,18 @@ export const Header: React.FC<HeaderProps> = ({ onResetData, currentRole = 'Scru
               <Clock className="w-3.5 h-3.5 text-gov-navy" />
               <span>{currentTime}</span>
             </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3 text-gov-saffron-dark" />
-                <span>1800-11-2026 / 011-29581000</span>
-              </span>
+            {/* <div className="hidden sm:flex items-center gap-2">
+
               <span className="text-gov-slate-300">|</span>
               <span className="flex items-center gap-1">
                 <Mail className="w-3 h-3 text-gov-navy" />
                 <span>helpdesk@aicte-india.org</span>
               </span>
-            </div>
+            </div> */}
 
             {/* Language & Accessibility */}
             <div className="flex items-center gap-2 pl-2 border-l border-gov-slate-300">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setLang(lang === 'EN' ? 'HI' : 'EN')}
                 className="flex items-center gap-1 font-semibold text-gov-navy hover:text-gov-saffron-dark transition-colors px-1.5 py-0.5 rounded border border-gov-slate-300 bg-white"
@@ -76,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({ onResetData, currentRole = 'Scru
               >
                 <Globe className="w-3 h-3" />
                 <span>{lang === 'EN' ? 'हिंदी' : 'English'}</span>
-              </button>
+              </button> */}
 
               {onResetData && (
                 <button
@@ -115,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({ onResetData, currentRole = 'Scru
                 System for Automated Regulation and AICTE Licensing
               </h1>
               <div className="text-xs text-gov-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
-                <span>Statutory Body, Ministry of Education, Govt. of India</span>
+                {/* <span>Statutory Body, Ministry of Education, Govt. of India</span> */}
                 <span className="hidden sm:inline text-gov-slate-300">•</span>
 
               </div>
