@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Mail, Globe, ShieldCheck, Clock, RefreshCw } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUser } from '@fortawesome/free-solid-svg-icons';
 
 interface HeaderProps {
   onResetData?: () => void;
@@ -107,17 +109,15 @@ export const Header: React.FC<HeaderProps> = ({ onResetData, currentRole = 'Scru
 
             <div>
               <div className="text-xs sm:text-sm font-semibold text-gov-slate-700 tracking-wide">
-                अखिल भारतीय तकनीकी शिक्षा परिषद
+                स्वचालित विनियमन प्रणाली और एआईसीटीई लाइसेंसिंग
               </div>
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gov-navy tracking-tight leading-tight">
-                ALL INDIA COUNCIL FOR TECHNICAL EDUCATION
+                System for Automated Regulation and AICTE Licensing
               </h1>
               <div className="text-xs text-gov-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
                 <span>Statutory Body, Ministry of Education, Govt. of India</span>
                 <span className="hidden sm:inline text-gov-slate-300">•</span>
-                <span className="inline-flex items-center gap-1 font-medium text-gov-navy-light bg-blue-50 px-2 py-0.5 rounded text-[11px] border border-blue-200">
-                  Approval & EVC Management Workflow
-                </span>
+
               </div>
             </div>
           </div>
@@ -134,7 +134,7 @@ export const Header: React.FC<HeaderProps> = ({ onResetData, currentRole = 'Scru
             </div>
             <div className="border-l border-gov-slate-200 pl-3">
               <div className="w-10 h-10 rounded-full bg-gov-navy text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-gov-saffron-light/50">
-                AI
+                <FontAwesomeIcon icon={faUser} style={{ color: 'rgb(231, 234, 239)' }} />
               </div>
             </div>
           </div>

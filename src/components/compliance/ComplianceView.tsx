@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  ShieldAlert, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Clock, 
-  Building2, 
-  FileText, 
-  Send, 
-  RefreshCw, 
-  Filter, 
+import {
+  ShieldAlert,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Building2,
+  FileText,
+  Send,
+  RefreshCw,
+  Filter,
   Search,
   ExternalLink,
   ChevronRight,
@@ -60,9 +60,7 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-gov-navy bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-900">
-                Statutory Compliance Watch
-              </span>
+
               <span className="text-xs text-gov-slate-500">AICTE Regulatory Vigilance</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gov-navy mt-1">
@@ -74,10 +72,10 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold px-3 py-1.5 rounded bg-rose-50 text-rose-800 border border-rose-300">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded bg-grey-50 text-rose-800 border border-rose-300">
               {complianceRecords.filter(c => c.urgency === 'Critical Expired').length} Critical Expired
             </span>
-            <span className="text-xs font-semibold px-3 py-1.5 rounded bg-amber-50 text-amber-800 border border-amber-300">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded bg-grey-50 text-amber-800 border border-amber-300">
               {complianceRecords.filter(c => c.urgency === 'Expiring Soon').length} Expiring in 90 Days
             </span>
           </div>
@@ -133,26 +131,24 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
         {filtered.map((record) => (
           <div
             key={record.id}
-            className={`bg-white rounded-lg border shadow-sm p-4 flex flex-col justify-between transition-all ${
-              record.urgency === 'Critical Expired'
-                ? 'border-rose-300 bg-rose-50/20'
-                : record.urgency === 'Expiring Soon'
-                ? 'border-amber-300 bg-amber-50/20'
+            className={`bg-white rounded-lg border shadow-sm p-4 flex flex-col justify-between transition-all ${record.urgency === 'Critical Expired'
+              ? 'border-navy-400 bg-rose-50/20'
+              : record.urgency === 'Expiring Soon'
+                ? 'border-navy-400 bg-amber-50/20'
                 : 'border-gov-slate-200'
-            }`}
+              }`}
           >
             <div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-gov-slate-500 uppercase tracking-wide">
                   {record.category}
                 </span>
-                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                  record.urgency === 'Critical Expired'
-                    ? 'bg-rose-100 text-rose-800 border-rose-300'
-                    : record.urgency === 'Expiring Soon'
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${record.urgency === 'Critical Expired'
+                  ? 'bg-rose-100 text-rose-800 border-rose-300'
+                  : record.urgency === 'Expiring Soon'
                     ? 'bg-amber-100 text-amber-800 border-amber-300'
                     : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                }`}>
+                  }`}>
                   {record.daysRemaining < 0
                     ? `Expired (${Math.abs(record.daysRemaining)} days ago)`
                     : `${record.daysRemaining} days remaining`}
@@ -177,11 +173,10 @@ export const ComplianceView: React.FC<ComplianceViewProps> = ({
                 </div>
               </div>
 
-              <div className={`mt-3 p-2.5 rounded text-xs border ${
-                record.urgency === 'Critical Expired'
-                  ? 'bg-rose-50 text-rose-900 border-rose-200'
-                  : 'bg-amber-50 text-amber-900 border-amber-200'
-              }`}>
+              <div className={`mt-3 p-2.5 rounded text-xs border ${record.urgency === 'Critical Expired'
+                ? 'bg-rose-50 text-rose-900 border-rose-200'
+                : 'bg-amber-50 text-amber-900 border-amber-200'
+                }`}>
                 <strong>Statutory Action:</strong> {record.actionRequired}
               </div>
             </div>

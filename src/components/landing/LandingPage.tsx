@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  ArrowRight, 
-  Search, 
-  ShieldAlert, 
-  FileCheck2, 
-  CalendarClock, 
-  FileText, 
-  CheckCircle2, 
-  Clock, 
-  Building2, 
+import {
+  ArrowRight,
+  Search,
+  ShieldAlert,
+  FileCheck2,
+  CalendarClock,
+  FileText,
+  CheckCircle2,
+  Clock,
+  Building2,
   Info,
   Scale,
   Users,
@@ -59,7 +59,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-gov-slate-50 text-gov-slate-900">
-      {/* Notice Banner */}
+      {/* Notice Banner
       <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-900">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -72,19 +72,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             Member 1 Verified
           </span>
         </div>
-      </div>
+      </div> */}
 
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-white to-gov-slate-100 border-b border-gov-slate-200 pt-10 pb-14 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            
+
             {/* Left Hero Content */}
             <div className="lg:col-span-7 space-y-5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-gov-navy border border-blue-200">
+              {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-gov-navy border border-blue-200">
                 <Scale className="w-3.5 h-3.5 text-gov-navy" />
                 <span>Statutory AICTE Approval Process 2026-27</span>
-              </div>
+              </div> */}
 
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gov-navy tracking-tight leading-tight">
                 AICTE Approval &amp; Compliance Portal
@@ -155,7 +155,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="lg:col-span-5">
               <div className="bg-white rounded-lg border-2 border-gov-slate-200 shadow-md p-6 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-gov-navy via-gov-saffron to-gov-green"></div>
-                
+
                 <div className="flex items-center justify-between pb-4 border-b border-gov-slate-200">
                   <div>
                     <span className="text-[11px] font-bold tracking-wider uppercase text-gov-slate-500">Live Portal State</span>
@@ -169,7 +169,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
                 {/* Key Metrics Grid */}
                 <div className="grid grid-cols-2 gap-3.5 my-4">
-                  <div 
+                  <div
                     onClick={onViewApplications}
                     className="bg-gov-slate-50 hover:bg-blue-50/60 p-3.5 rounded border border-gov-slate-200 transition-colors cursor-pointer group"
                   >
@@ -184,7 +184,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     onClick={onViewEVC}
                     className="bg-gov-slate-50 hover:bg-amber-50/60 p-3.5 rounded border border-gov-slate-200 transition-colors cursor-pointer group"
                   >
@@ -199,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     onClick={onViewApplications}
                     className="bg-gov-slate-50 hover:bg-emerald-50/60 p-3.5 rounded border border-gov-slate-200 transition-colors cursor-pointer group"
                   >
@@ -211,7 +211,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     <div className="text-[11px] text-gov-slate-500 mt-0.5">Digitally countersigned</div>
                   </div>
 
-                  <div 
+                  <div
                     onClick={onViewCompliance}
                     className="bg-gov-slate-50 hover:bg-rose-50/60 p-3.5 rounded border border-gov-slate-200 transition-colors cursor-pointer group"
                   >

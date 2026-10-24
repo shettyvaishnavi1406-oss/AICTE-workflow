@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Search, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
-  ArrowRight, 
-  Building2, 
-  Calendar, 
+import {
+  X,
+  Search,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  ArrowRight,
+  Building2,
+  Calendar,
   FileText,
   MapPin,
   ShieldCheck
@@ -73,9 +73,9 @@ export const TrackModal: React.FC<TrackModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-lg shadow-xl border border-gov-slate-300 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        
+
         {/* Header */}
-        <div className="bg-gov-navy text-white px-5 py-3.5 flex items-center justify-between border-b-2 border-gov-saffron">
+        <div className="bg-gov-navy text-white px-5 py-3.5 flex items-center justify-between border-b-2 border-gov-white">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-amber-300" />
             <h3 className="font-bold text-sm tracking-wide">Track AICTE Application Status</h3>
@@ -104,7 +104,7 @@ export const TrackModal: React.FC<TrackModalProps> = ({
             </div>
             <button
               type="submit"
-              className="bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 font-bold px-4 py-1.5 rounded text-xs border border-amber-400 shadow-sm"
+              className="bg-gov-white hover:bg-gov-saffron-light text-slate-950 font-bold px-4 py-1.5 rounded text-xs border border-grey-400 shadow-sm"
             >
               Search
             </button>
@@ -112,7 +112,7 @@ export const TrackModal: React.FC<TrackModalProps> = ({
 
           {/* Quick Click Demo Application Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] text-gov-slate-500">
-            <span className="font-semibold">Quick sample lookups:</span>
+            <span className="font-semibold">Quick recent lookups:</span>
             {applications.slice(0, 3).map((app) => (
               <button
                 key={app.id}
@@ -146,13 +146,12 @@ export const TrackModal: React.FC<TrackModalProps> = ({
                 </div>
               </div>
 
-              <span className={`badge-stage self-start sm:self-center text-xs px-3 py-1 ${
-                selectedApp.currentStage === 'Approved'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                  : selectedApp.currentStage === 'Deficiency Issued'
+              <span className={`badge-stage self-start sm:self-center text-xs px-3 py-1 ${selectedApp.currentStage === 'Approved'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : selectedApp.currentStage === 'Deficiency Issued'
                   ? 'bg-rose-50 text-rose-800 border-rose-300'
                   : 'bg-blue-50 text-blue-800 border-blue-300'
-              }`}>
+                }`}>
                 {selectedApp.currentStage}
               </span>
             </div>

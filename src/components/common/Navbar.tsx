@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  Home, 
-  LayoutDashboard, 
-  FileText, 
-  CalendarClock, 
-  ShieldAlert, 
-  ClipboardCheck, 
-  History, 
-  Menu, 
-  X, 
+import {
+  Home,
+  LayoutDashboard,
+  FileText,
+  CalendarClock,
+  ShieldAlert,
+  ClipboardCheck,
+  History,
+  Menu,
+  X,
   Search,
   ExternalLink
 } from 'lucide-react';
@@ -101,21 +101,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onTabChange(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 ${
-                    isActive
-                      ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
-                      : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
-                  }`}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 ${isActive
+                    ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
+                    : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-amber-300' : 'text-slate-300'}`} />
                   <span>{item.label}</span>
-                  {item.badge !== null && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-tight ${
-                      item.badgeColor || 'bg-blue-600 text-white'
-                    }`}>
+                  {/* {item.badge !== null && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-tight ${item.badgeColor || 'bg-blue-600 text-white'
+                      }`}>
                       {item.badge}
                     </span>
-                  )}
+                  )} */}
                 </button>
               );
             })}
@@ -197,11 +195,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onTabChange(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium ${
-                    isActive
-                      ? 'bg-gov-navy-light text-amber-300 font-semibold'
-                      : 'text-slate-200 hover:bg-gov-navy-hover'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium ${isActive
+                    ? 'bg-gov-navy-light text-amber-300 font-semibold'
+                    : 'text-slate-200 hover:bg-gov-navy-hover'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4" />
