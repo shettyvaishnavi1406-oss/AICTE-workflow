@@ -507,6 +507,10 @@ export const App: React.FC = () => {
               setEvcTargetAppId(null);
               setAutoOpenEVCModal(false);
             }}
+            currentRole={currentRole}
+            userFullName={profile?.fullName || (user?.email === 'evc.member@aicte.gov.in' ? 'Prof. (Dr.) Amitabh Mohanty' : user?.email)}
+            userEmail={profile?.email || user?.email}
+            auditLogs={auditLogs}
           />
         )}
 

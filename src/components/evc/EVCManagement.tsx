@@ -12,11 +12,13 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
-import { EVCVisit, ExpertProfile, Application } from '../../types';
+import { EVCVisit, ExpertProfile, Application, AuditLogItem } from '../../types';
 import { suggestEvcTeam, validateTeam, ValidationWarning } from '../../lib/evcTeam';
 import { saveStoredExperts } from '../../data/mockData';
+import { MyAssignedApplications } from './MyAssignedApplications';
 
 interface EVCManagementProps {
   evcVisits: EVCVisit[];
@@ -27,6 +29,10 @@ interface EVCManagementProps {
   initialSelectedAppId?: string | null;
   autoOpenScheduleModal?: boolean;
   onClearInitialSelectedApp?: () => void;
+  currentRole?: string;
+  userFullName?: string;
+  userEmail?: string;
+  auditLogs?: AuditLogItem[];
 }
 
 export function deriveCityFromApplication(app?: Application): string {
@@ -91,8 +97,16 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
   onOpenTrackModal,
   initialSelectedAppId,
   autoOpenScheduleModal,
-  onClearInitialSelectedApp
+  onClearInitialSelectedApp,
+  currentRole = 'Regional Officer',
+  userFullName = 'Prof. (Dr.) Amitabh Mohanty',
+  userEmail = 'evc.member@aicte.gov.in',
+  auditLogs = []
 }) => {
+  const isEvcMember = currentRole === 'EVC Member';
+  const [activeSubTab, setActiveSubTab] = useState<'my-assignments' | 'panels'>(
+    isEvcMember ? 'my-assignments' : 'panels'
+  );
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedAppId, setSelectedAppId] = useState(initialSelectedAppId || applications[0]?.id || '');
   const [city, setCity] = useState('');
@@ -222,34 +236,72 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <div className="bg-white rounded-lg border border-gov-slate-200 p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-
-
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gov-navy mt-1">
-              Expert Visit Committee (EVC) Management
-            </h2>
-            <p className="text-xs sm:text-sm text-gov-slate-600 mt-0.5">
-              Coordinate on-site physical inspection panels, virtual video EVC sessions, expert roster assignments, and committee findings.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowScheduleModal(true)}
-              className="inline-flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 font-bold text-xs px-3.5 py-2 rounded shadow-sm border border-amber-400 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Schedule New EVC Panel</span>
-            </button>
-          </div>
+      {/* Role Navigation Bar for EVC Member */}
+      {isEvcMember && (
+        <div className="flex border-b border-gov-slate-200 bg-white rounded-lg p-1.5 shadow-sm gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('my-assignments')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+              activeSubTab === 'my-assignments'
+                ? 'bg-gov-navy text-white shadow-xs'
+                : 'text-gov-slate-600 hover:bg-gov-slate-100 hover:text-gov-navy'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>My Assigned Applications</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('panels')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+              activeSubTab === 'panels'
+                ? 'bg-gov-navy text-white shadow-xs'
+                : 'text-gov-slate-600 hover:bg-gov-slate-100 hover:text-gov-navy'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>All Constituted Panels &amp; Expert Roster</span>
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Render My Assigned Applications section if on that tab */}
+      {isEvcMember && activeSubTab === 'my-assignments' ? (
+        <MyAssignedApplications
+          userFullName={userFullName}
+          userEmail={userEmail}
+          userRole={currentRole}
+          allAuditLogs={auditLogs}
+        />
+      ) : (
+        <>
+          {/* Page Header */}
+          <div className="bg-white rounded-lg border border-gov-slate-200 p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gov-navy mt-1">
+                  Expert Visit Committee (EVC) Management
+                </h2>
+                <p className="text-xs sm:text-sm text-gov-slate-600 mt-0.5">
+                  Coordinate on-site physical inspection panels, virtual video EVC sessions, expert roster assignments, and committee findings.
+                </p>
+              </div>
+
+              {!isEvcMember && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(true)}
+                    className="inline-flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 font-bold text-xs px-3.5 py-2 rounded shadow-sm border border-amber-400 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Schedule New EVC Panel</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
       {/* Verified Expert Roster Preview */}
       <div className="bg-white rounded-lg border border-gov-slate-200 p-4 shadow-sm">
@@ -366,8 +418,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
           ))}
         </div>
       </div>
+    </>
+  )}
 
-      {/* Schedule EVC Modal */}
+  {/* Schedule EVC Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl border border-gov-slate-300 w-full max-w-lg overflow-hidden">
