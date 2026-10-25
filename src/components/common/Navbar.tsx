@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'dashboard' as NavTab,
       label: currentRole === 'EVC Member' ? 'My Dashboard' : 'Admin Dashboard',
       icon: LayoutDashboard,
-      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'EVC Member']
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary']
     },
     {
       id: 'applications' as NavTab,
@@ -83,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'audit' as NavTab,
       label: 'Audit Log',
       icon: History,
-      roles: ['Regional Officer', 'Admin', 'Admin / Member Secretary']
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary']
     }
   ];
 
