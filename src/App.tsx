@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { Header } from './components/common/Header';
 import { Navbar, NavTab } from './components/common/Navbar';
 import { LandingPage } from './components/landing/LandingPage';
+import { PublicHomePage } from './components/landing/PublicHomePage';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { ApplicationsList } from './components/applications/ApplicationsList';
 import { ApplicationDetailModal } from './components/applications/ApplicationDetailModal';
@@ -41,9 +43,43 @@ import { calculateStageProgress } from './lib/workflow';
 import { supabase } from './lib/supabase';
 
 export const App: React.FC = () => {
-  const { currentRole, profile, user, isAuthenticated, authMode, signOut } = useAuth();
+  const { currentRole, profile, user, isAuthenticated, isLoading: authLoading, authMode, signOut } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('landing');
+  const [activeTab, setActiveTab] = useState<NavTab>('login');
+  const [showLogin, setShowLogin] = useState(false);
+
+  // Map role to its default landing tab
+  const getDefaultTabForRole = (role: string): NavTab => {
+    switch (role) {
+      case 'Institution': return 'applications';
+      case 'EVC Member': return 'evc';
+      case 'Scrutiny Officer': return 'dashboard';
+      case 'Regional Officer': return 'dashboard';
+      case 'Admin': return 'dashboard';
+      case 'Admin / Member Secretary': return 'dashboard';
+      default: return 'login';
+    }
+  };
+
+  // Tabs each role is allowed to access
+  const allowedTabsForRole = useMemo((): Set<NavTab> => {
+    const base: NavTab[] = ['landing'];
+    switch (currentRole) {
+      case 'Institution':
+        return new Set([...base, 'dashboard', 'applications', 'compliance']);
+      case 'Scrutiny Officer':
+        return new Set([...base, 'dashboard', 'applications', 'compliance', 'reports']);
+      case 'Regional Officer':
+        return new Set([...base, 'dashboard', 'applications', 'evc', 'compliance', 'reports', 'audit']);
+      case 'EVC Member':
+        return new Set([...base, 'dashboard', 'evc']);
+      case 'Admin':
+      case 'Admin / Member Secretary':
+        return new Set([...base, 'dashboard', 'applications', 'evc', 'compliance', 'reports', 'audit']);
+      default:
+        return new Set<NavTab>(['login']);
+    }
+  }, [currentRole]);
 
   const [applications, setApplications] = useState<Application[]>(getStoredApplications);
   const [evcVisits, setEvcVisits] = useState<EVCVisit[]>(getStoredEVCVisits);
@@ -53,6 +89,7 @@ export const App: React.FC = () => {
 
   // Initial load from Supabase backend (with graceful fallback to stored data)
   useEffect(() => {
+    if (!isAuthenticated) return; // Don't load data until authenticated
     let isMounted = true;
     async function loadDataFromSource() {
       try {
@@ -78,7 +115,19 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  // Enforce tab access: redirect to default tab if user is on a tab they can't access
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (activeTab === 'login') {
+      setActiveTab(getDefaultTabForRole(currentRole));
+      return;
+    }
+    if (!allowedTabsForRole.has(activeTab)) {
+      setActiveTab(getDefaultTabForRole(currentRole));
+    }
+  }, [isAuthenticated, activeTab, currentRole, allowedTabsForRole]);
 
   // Sync compliance and audit logs from Supabase
   const refreshFromSupabase = React.useCallback(async () => {
@@ -361,13 +410,8 @@ export const App: React.FC = () => {
 
   // Smooth route determination after login
   const handleLoginSuccess = () => {
-    if (currentRole === 'Institution') {
-      setActiveTab('applications');
-    } else if (currentRole === 'EVC Member') {
-      setActiveTab('evc');
-    } else {
-      setActiveTab('dashboard');
-    }
+    setShowLogin(false);
+    setActiveTab(getDefaultTabForRole(currentRole));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -394,17 +438,61 @@ export const App: React.FC = () => {
     ).length
   };
 
-  // If active tab is login, show dedicated LoginPage
-  if (activeTab === 'login') {
+  // Show loading spinner during auth initialization
+  if (authLoading) {
     return (
-      <LoginPage
-        onSuccess={handleLoginSuccess}
-        onCancel={() => {
-          setActiveTab('landing');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-gov-slate-50">
+        <div className="text-center">
+          <div className="inline-block w-10 h-10 border-4 border-gov-navy border-t-amber-400 rounded-full animate-spin mb-4"></div>
+          <p className="text-gov-slate-600 text-sm font-medium">Restoring session…</p>
+        </div>
+      </div>
     );
+  }
+
+  // If not authenticated, show public home or login page
+  if (!isAuthenticated) {
+    if (showLogin) {
+      return (
+        <LoginPage
+          onSuccess={handleLoginSuccess}
+          onCancel={() => setShowLogin(false)}
+        />
+      );
+    }
+    return <PublicHomePage onOpenLogin={() => setShowLogin(true)} />;
+  }
+
+  // If authenticated but role is invalid/missing, show access error
+  const validRoles = ['Institution', 'Scrutiny Officer', 'Regional Officer', 'EVC Member', 'Admin', 'Admin / Member Secretary'];
+  if (!validRoles.includes(currentRole)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gov-slate-50">
+        <div className="text-center max-w-md p-8 bg-white rounded-lg border border-gov-slate-200 shadow-md">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-rose-100 text-rose-600 mb-4">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-bold text-gov-navy mb-2">Role Not Assigned</h2>
+          <p className="text-sm text-gov-slate-600 mb-4">
+            Your account does not have a valid role assignment. Please contact your administrator to assign a role to your account.
+          </p>
+          <p className="text-xs text-gov-slate-500 mb-4">Current role: <code className="bg-gov-slate-100 px-1.5 py-0.5 rounded text-xs">{currentRole || 'None'}</code></p>
+          <button
+            type="button"
+            onClick={async () => { await signOut(); setShowLogin(false); }}
+            className="inline-flex items-center gap-2 bg-gov-navy hover:bg-gov-navy-light text-white font-semibold text-sm px-5 py-2.5 rounded-md shadow transition-colors cursor-pointer"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // If active tab is login (but user is authenticated), redirect to their dashboard
+  if (activeTab === 'login') {
+    setActiveTab(getDefaultTabForRole(currentRole));
+    return null;
   }
 
   return (
@@ -423,6 +511,9 @@ export const App: React.FC = () => {
         onSignOut={async () => {
           await signOut();
           setActiveTab('login');
+          setShowLogin(false);
+          // Replace history state to prevent Back button returning to protected content
+          window.history.replaceState(null, '', window.location.pathname);
         }}
       />
 

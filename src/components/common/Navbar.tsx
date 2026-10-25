@@ -48,16 +48,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     {
       id: 'dashboard' as NavTab,
-      label: currentRole === 'Institution' ? 'My Overview' : 'Admin Dashboard',
+      label: currentRole === 'EVC Member' ? 'My Dashboard' : 'Admin Dashboard',
       icon: LayoutDashboard,
-      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'Institution']
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'EVC Member']
     },
     {
       id: 'applications' as NavTab,
       label: currentRole === 'Institution' ? 'My Applications' : 'Applications',
       icon: FileText,
       badge: counts.applications > 0 ? counts.applications : null,
-      roles: ['All']
+      roles: ['Institution', 'Scrutiny Officer', 'Regional Officer', 'Admin', 'Admin / Member Secretary']
     },
     {
       id: 'evc' as NavTab,
@@ -71,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       label: currentRole === 'Institution' ? 'Compliance & Undertakings' : 'Compliance',
       icon: ShieldAlert,
       badge: counts.complianceAlerts > 0 ? counts.complianceAlerts : null,
-      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'Institution']
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary']
     },
     {
       id: 'reports' as NavTab,
@@ -107,11 +107,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onTabChange(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 cursor-pointer ${
-                    isActive
-                      ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
-                      : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
-                  }`}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 cursor-pointer ${isActive
+                    ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
+                    : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-amber-300' : 'text-slate-300'}`} />
                   <span>{item.label}</span>
@@ -207,11 +206,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onTabChange(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium cursor-pointer ${
-                    isActive
-                      ? 'bg-gov-navy-light text-amber-300 font-semibold'
-                      : 'text-slate-200 hover:bg-gov-navy-hover'
-                  }`}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium cursor-pointer ${isActive
+                    ? 'bg-gov-navy-light text-amber-300 font-semibold'
+                    : 'text-slate-200 hover:bg-gov-navy-hover'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4" />
