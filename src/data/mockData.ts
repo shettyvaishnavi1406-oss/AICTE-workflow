@@ -462,13 +462,21 @@ export const INITIAL_EXPERTS: ExpertProfile[] = [
 ];
 
 // LocalStorage helpers to preserve data & allow dynamic mutations
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   APPLICATIONS: 'aicte_portal_applications',
   EVC_VISITS: 'aicte_portal_evc_visits',
   COMPLIANCE: 'aicte_portal_compliance',
   AUDIT_LOGS: 'aicte_portal_audit_logs',
   EXPERTS: 'aicte_portal_experts'
-};
+} as const;
+
+export function clearApplicationStorage(): void {
+  if (typeof localStorage === 'undefined') return;
+  const keys = Object.values(STORAGE_KEYS);
+  for (const key of keys) {
+    localStorage.removeItem(key);
+  }
+}
 
 const memoryStore: Record<string, string> = {};
 

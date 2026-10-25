@@ -10,6 +10,10 @@ import { EVCManagement } from './components/evc/EVCManagement';
 import { ReportsView } from './components/reports/ReportsView';
 import { AuditLogView } from './components/audit/AuditLogView';
 import { TrackModal } from './components/common/TrackModal';
+import { ApplicationFormModal } from './components/applications/ApplicationFormModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { LoginPage } from './components/auth/LoginPage';
+import { useAuth } from './contexts/AuthContext';
 
 import {
   getStoredApplications,
@@ -26,17 +30,21 @@ import {
   INITIAL_COMPLIANCE,
   INITIAL_AUDIT_LOGS,
   enrichApplicationCalculations,
-  enrichComplianceCalculations
+  enrichComplianceCalculations,
+  clearApplicationStorage
 } from './data/mockData';
 
 import { Application, ApplicationStage, EVCVisit, ComplianceRecord, AuditLogItem, ExpertProfile } from './types';
 import { dataService } from './services/dataService';
 import { calculateIsOverdue, calculateUrgency } from './lib/dateCalculations';
 import { calculateStageProgress } from './lib/workflow';
-import { supabase } from './lib/supabase'
+import { supabase } from './lib/supabase';
 
 export const App: React.FC = () => {
+  const { currentRole, profile, user, isAuthenticated, authMode, signOut } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('landing');
+
   const [applications, setApplications] = useState<Application[]>(getStoredApplications);
   const [evcVisits, setEvcVisits] = useState<EVCVisit[]>(getStoredEVCVisits);
   const [complianceRecords, setComplianceRecords] = useState<ComplianceRecord[]>(getStoredCompliance);
@@ -96,18 +104,23 @@ export const App: React.FC = () => {
         setComplianceRecords(mapped);
       }
 
-      const { data: auditData } = await supabase.from('audit_logs').select('*').order('event_timestamp', { ascending: false });
+      const { data: auditData } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('event_timestamp', { ascending: false });
+
       if (auditData && auditData.length > 0) {
         const mappedAudit: AuditLogItem[] = auditData.map((a: any) => ({
           id: a.id,
-          timestamp: new Date(a.event_timestamp).toLocaleString('en-IN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-          }) + ' IST',
+          timestamp:
+            new Date(a.event_timestamp).toLocaleString('en-IN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            }) + ' IST',
           actor: a.actor,
           role: a.role as any,
           action: a.action,
@@ -130,11 +143,14 @@ export const App: React.FC = () => {
   const [selectedAppForDossier, setSelectedAppForDossier] = useState<Application | null>(null);
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
   const [trackInitialAppNum, setTrackInitialAppNum] = useState<string>('');
+  const [isNewAppModalOpen, setIsNewAppModalOpen] = useState(false);
+  const [evcTargetAppId, setEvcTargetAppId] = useState<string | null>(null);
+  const [autoOpenEVCModal, setAutoOpenEVCModal] = useState<boolean>(false);
 
-  // Reset to original mock data
+  // Safe reset of prototype records (removes ONLY the 5 application-owned keys)
   const handleResetData = () => {
     if (window.confirm('Reset all demo applications and EVC records to default values?')) {
-      localStorage.clear();
+      clearApplicationStorage();
       const freshApps = INITIAL_APPLICATIONS.map(enrichApplicationCalculations);
       const freshComps = INITIAL_COMPLIANCE.map(enrichComplianceCalculations);
 
@@ -154,8 +170,21 @@ export const App: React.FC = () => {
     }
   };
 
+  // Schedule EVC entry point handler (passes selected app into EVC modal)
+  const handleScheduleEVC = (app: Application) => {
+    setSelectedAppForDossier(null);
+    setEvcTargetAppId(app.id);
+    setAutoOpenEVCModal(true);
+    setActiveTab('evc');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  // Stage update workflow (Member 1)
+  // New application creation handler
+  const handleApplicationCreated = (newApp: Application) => {
+    setApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
+  };
+
+  // Stage update workflow
   const handleUpdateStage = async (appId: string, newStage: ApplicationStage, remark: string) => {
     const targetApp = applications.find((a) => a.id === appId);
     if (!targetApp) {
@@ -196,19 +225,23 @@ export const App: React.FC = () => {
       });
     }
 
-    // Append to Audit Trail
+    // Append to Audit Trail using active authenticated identity
+    const actorName = profile?.fullName || user?.email || 'Authorized Officer';
+    const actorRole = (profile?.role as any) || 'Regional Officer (RO)';
+
     const newAuditLog: AuditLogItem = {
       id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }) + ' IST',
-      actor: 'Dr. Ramesh Chandra',
-      role: 'Regional Officer (RO)',
+      timestamp:
+        new Date().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) + ' IST',
+      actor: actorName,
+      role: actorRole,
       action: `Stage Changed to "${newStage}"`,
       applicationNumber: targetApp.applicationNumber,
       instituteName: targetApp.instituteName,
@@ -223,7 +256,7 @@ export const App: React.FC = () => {
     return result;
   };
 
-  // Add EVC Visit workflow (Teammate / Member 2)
+  // Add EVC Visit workflow
   const handleAddEVCVisit = (newVisit: EVCVisit) => {
     const updatedVisits = [newVisit, ...evcVisits];
     setEvcVisits(updatedVisits);
@@ -246,19 +279,23 @@ export const App: React.FC = () => {
     saveStoredApplications(updatedApps);
     dataService.addEVCVisit(newVisit);
 
-    // Add audit log
+    // Add audit log using active authenticated identity
+    const actorName = profile?.fullName || user?.email || 'Regional Office Committee Desk';
+    const actorRole = (profile?.role as any) || 'Regional Officer (RO)';
+
     const auditItem: AuditLogItem = {
       id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }) + ' IST',
-      actor: 'Regional Office Committee Desk',
-      role: 'Regional Officer (RO)',
+      timestamp:
+        new Date().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }) + ' IST',
+      actor: actorName,
+      role: actorRole,
       action: 'EVC Panel Constituted',
       applicationNumber: newVisit.applicationNumber,
       instituteName: newVisit.instituteName,
@@ -288,18 +325,22 @@ export const App: React.FC = () => {
 
     const target = complianceRecords.find((c) => c.id === id);
     if (target) {
+      const actorName = profile?.fullName || user?.email || 'Statutory Vigilance Cell';
+      const actorRole = (profile?.role as any) || 'Regional Officer (RO)';
+
       const auditItem: AuditLogItem = {
         id: `aud-${Date.now()}`,
-        timestamp: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }) + ' IST',
-        actor: 'Statutory Vigilance Cell',
-        role: 'Regional Officer (RO)',
+        timestamp:
+          new Date().toLocaleString('en-IN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }) + ' IST',
+        actor: actorName,
+        role: actorRole,
         action: `Compliance Action: ${newStatus}`,
         applicationNumber: target.applicationNumber,
         instituteName: target.instituteName,
@@ -318,19 +359,72 @@ export const App: React.FC = () => {
     setIsTrackModalOpen(true);
   };
 
+  // Smooth route determination after login
+  const handleLoginSuccess = () => {
+    if (currentRole === 'Institution') {
+      setActiveTab('applications');
+    } else if (currentRole === 'EVC Member') {
+      setActiveTab('evc');
+    } else {
+      setActiveTab('dashboard');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Role-based data presentation (Least-privilege view)
+  const isInstitution = currentRole === 'Institution';
+  const instCode = profile?.institutionCode;
+
+  const displayedApplications =
+    isInstitution && instCode
+      ? applications.filter((a) => a.instituteCode === instCode)
+      : applications;
+
+  const displayedCompliance =
+    isInstitution && instCode
+      ? complianceRecords.filter((c) => c.instituteCode === instCode)
+      : complianceRecords;
+
   // Derived counts for navigation badges
   const navCounts = {
-    applications: applications.length,
+    applications: displayedApplications.length,
     pendingEVC: evcVisits.filter((v) => v.status === 'Scheduled').length,
-    complianceAlerts: complianceRecords.filter(
+    complianceAlerts: displayedCompliance.filter(
       (c) => c.urgency === 'Critical Expired' || c.urgency === 'Expiring Soon'
     ).length
   };
 
+  // If active tab is login, show dedicated LoginPage
+  if (activeTab === 'login') {
+    return (
+      <LoginPage
+        onSuccess={handleLoginSuccess}
+        onCancel={() => {
+          setActiveTab('landing');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gov-slate-50 text-gov-slate-900 font-sans">
-      {/* Official Government Header */}
-      <Header onResetData={handleResetData} currentRole="Regional Officer (RO Western)" />
+      {/* Official Government Header with Top-Bar Profile */}
+      <Header
+        onResetData={handleResetData}
+        currentRole={currentRole}
+        userFullName={profile?.fullName}
+        userEmail={profile?.email}
+        institutionCode={profile?.institutionCode}
+        region={profile?.region}
+        authMode={authMode}
+        isAuthenticated={isAuthenticated}
+        onOpenAuth={() => setActiveTab('login')}
+        onSignOut={async () => {
+          await signOut();
+          setActiveTab('login');
+        }}
+      />
 
       {/* Global Navigation Bar */}
       <Navbar
@@ -341,6 +435,8 @@ export const App: React.FC = () => {
         }}
         onOpenTrackModal={() => handleOpenTrackModal()}
         counts={navCounts}
+        currentRole={currentRole}
+        isAuthenticated={isAuthenticated}
       />
 
       {/* Main Content Body */}
@@ -348,7 +444,7 @@ export const App: React.FC = () => {
         {activeTab === 'landing' && (
           <LandingPage
             onOpenDashboard={() => {
-              setActiveTab('dashboard');
+              setActiveTab(isInstitution ? 'applications' : 'dashboard');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onOpenTrackModal={handleOpenTrackModal}
@@ -364,19 +460,21 @@ export const App: React.FC = () => {
               setActiveTab('evc');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            applications={applications}
+            onOpenNewApplication={() => setIsNewAppModalOpen(true)}
+            onOpenLogin={() => setActiveTab('login')}
+            applications={displayedApplications}
             evcVisits={evcVisits}
-            complianceRecords={complianceRecords}
+            complianceRecords={displayedCompliance}
           />
         )}
 
         {activeTab === 'dashboard' && (
           <Dashboard
-            applications={applications}
+            applications={displayedApplications}
             evcVisits={evcVisits}
-            complianceRecords={complianceRecords}
+            complianceRecords={displayedCompliance}
             auditLogs={auditLogs}
-            currentRole="Regional Officer (RO Western)"
+            currentRole={currentRole}
             onRefreshData={refreshFromSupabase}
             onSelectApplication={(app) => setSelectedAppForDossier(app)}
             onNavigateTab={(tab) => {
@@ -389,11 +487,10 @@ export const App: React.FC = () => {
 
         {activeTab === 'applications' && (
           <ApplicationsList
-            applications={applications}
+            applications={displayedApplications}
             onSelectApplication={(app) => setSelectedAppForDossier(app)}
-            onScheduleEVCModal={(app) => {
-              setActiveTab('evc');
-            }}
+            onScheduleEVCModal={handleScheduleEVC}
+            onOpenNewApplication={() => setIsNewAppModalOpen(true)}
           />
         )}
 
@@ -404,12 +501,18 @@ export const App: React.FC = () => {
             applications={applications}
             onAddEVCVisit={handleAddEVCVisit}
             onOpenTrackModal={handleOpenTrackModal}
+            initialSelectedAppId={evcTargetAppId}
+            autoOpenScheduleModal={autoOpenEVCModal}
+            onClearInitialSelectedApp={() => {
+              setEvcTargetAppId(null);
+              setAutoOpenEVCModal(false);
+            }}
           />
         )}
 
         {activeTab === 'compliance' && (
           <ComplianceView
-            complianceRecords={complianceRecords}
+            complianceRecords={displayedCompliance}
             onUpdateCompliance={handleUpdateCompliance}
             onOpenTrackModal={handleOpenTrackModal}
           />
@@ -417,7 +520,7 @@ export const App: React.FC = () => {
 
         {activeTab === 'reports' && (
           <ReportsView
-            applications={applications}
+            applications={displayedApplications}
             onOpenTrackModal={handleOpenTrackModal}
           />
         )}
@@ -436,10 +539,8 @@ export const App: React.FC = () => {
           application={selectedAppForDossier}
           onClose={() => setSelectedAppForDossier(null)}
           onUpdateStage={handleUpdateStage}
-          onScheduleEVCModal={(app) => {
-            setSelectedAppForDossier(null);
-            setActiveTab('evc');
-          }}
+          onScheduleEVCModal={handleScheduleEVC}
+          userRole={currentRole}
         />
       )}
 
@@ -453,6 +554,19 @@ export const App: React.FC = () => {
           setIsTrackModalOpen(false);
           setSelectedAppForDossier(app);
         }}
+      />
+
+      {/* Institution New Application Form Modal */}
+      <ApplicationFormModal
+        isOpen={isNewAppModalOpen}
+        onClose={() => setIsNewAppModalOpen(false)}
+        onApplicationCreated={handleApplicationCreated}
+      />
+
+      {/* Official AICTE Authentication & Role Switch Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
     </div>
   );

@@ -21,6 +21,63 @@ interface EVCManagementProps {
   applications: Application[];
   onAddEVCVisit: (visit: EVCVisit) => void;
   onOpenTrackModal: (appNum?: string) => void;
+  initialSelectedAppId?: string | null;
+  autoOpenScheduleModal?: boolean;
+  onClearInitialSelectedApp?: () => void;
+}
+
+export function deriveCityFromApplication(app?: Application): string {
+  if (!app) return '';
+  if ((app as any).city && typeof (app as any).city === 'string' && (app as any).city.trim()) {
+    return (app as any).city.trim();
+  }
+
+  const combined = `${app.instituteName} ${app.instituteCode}`.toUpperCase();
+  if (combined.includes('MUM') || combined.includes('MUMBAI')) return 'Mumbai';
+  if (combined.includes('DEL') || combined.includes('DELHI')) return 'New Delhi';
+  if (combined.includes('BLR') || combined.includes('BANGALORE') || combined.includes('BENGALURU')) return 'Bangalore';
+  if (combined.includes('PUN') || combined.includes('PUNE')) return 'Pune';
+  if (combined.includes('CHE') || combined.includes('CHENNAI') || combined.includes('MADRAS')) return 'Chennai';
+  if (combined.includes('KOL') || combined.includes('KOLKATA') || combined.includes('CALCUTTA')) return 'Kolkata';
+  if (combined.includes('HYD') || combined.includes('HYDERABAD')) return 'Hyderabad';
+  if (combined.includes('BHO') || combined.includes('BHOPAL')) return 'Bhopal';
+  if (combined.includes('KAN') || combined.includes('KANPUR')) return 'Kanpur';
+  if (combined.includes('AHM') || combined.includes('AHMEDABAD')) return 'Ahmedabad';
+  if (combined.includes('JAIPUR') || combined.includes('JAI')) return 'Jaipur';
+  if (combined.includes('LUCKNOW') || combined.includes('LKO')) return 'Lucknow';
+  if (combined.includes('NAGPUR') || combined.includes('NAG')) return 'Nagpur';
+
+  const stateToCityMap: Record<string, string> = {
+    'Maharashtra': 'Mumbai',
+    'Delhi': 'New Delhi',
+    'Karnataka': 'Bangalore',
+    'Tamil Nadu': 'Chennai',
+    'West Bengal': 'Kolkata',
+    'Uttar Pradesh': 'Kanpur',
+    'Madhya Pradesh': 'Bhopal',
+    'Telangana': 'Hyderabad',
+    'Gujarat': 'Ahmedabad',
+    'Rajasthan': 'Jaipur'
+  };
+
+  if (app.state && stateToCityMap[app.state]) {
+    return stateToCityMap[app.state];
+  }
+
+  const regionToCityMap: Record<string, string> = {
+    'Western': 'Mumbai',
+    'Northern': 'Kanpur',
+    'Southern': 'Chennai',
+    'Eastern': 'Kolkata',
+    'South-Western': 'Bangalore',
+    'Central': 'Bhopal'
+  };
+
+  if (app.region && regionToCityMap[app.region]) {
+    return regionToCityMap[app.region];
+  }
+
+  return app.state || 'Headquarters';
 }
 
 export const EVCManagement: React.FC<EVCManagementProps> = ({
@@ -29,20 +86,55 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
   applications,
   onAddEVCVisit,
   onOpenTrackModal,
+  initialSelectedAppId,
+  autoOpenScheduleModal,
+  onClearInitialSelectedApp
 }) => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedAppId, setSelectedAppId] = useState(applications[0]?.id || '');
-  const [visitDate, setVisitDate] = useState('2026-11-10');
+  const [selectedAppId, setSelectedAppId] = useState(initialSelectedAppId || applications[0]?.id || '');
+  const [city, setCity] = useState('');
+  const [visitDate, setVisitDate] = useState('');
   const [visitTime, setVisitTime] = useState('10:00 AM IST');
   const [visitMode, setVisitMode] = useState<'Physical On-Site' | 'Virtual Video EVC'>('Virtual Video EVC');
   const [selectedChairman, setSelectedChairman] = useState(experts[0]?.name || '');
   const [selectedExpert, setSelectedExpert] = useState(experts[1]?.name || '');
   const [instructions, setInstructions] = useState('Mandatory live verification of server room, labs, and faculty attendance.');
 
+  // Preselect application and auto-open modal if triggered from an entry point
+  React.useEffect(() => {
+    if (initialSelectedAppId) {
+      setSelectedAppId(initialSelectedAppId);
+      const app = applications.find(a => a.id === initialSelectedAppId);
+      if (app) {
+        setCity(deriveCityFromApplication(app));
+      }
+      if (autoOpenScheduleModal) {
+        setShowScheduleModal(true);
+      }
+    }
+  }, [initialSelectedAppId, autoOpenScheduleModal, applications]);
+
+  // Update derived city when institution changes
+  React.useEffect(() => {
+    const app = applications.find(a => a.id === selectedAppId);
+    if (app) {
+      setCity(deriveCityFromApplication(app));
+    }
+  }, [selectedAppId, applications]);
+
   const handleCreateVisit = (e: React.FormEvent) => {
     e.preventDefault();
     const app = applications.find(a => a.id === selectedAppId);
-    if (!app) return;
+    if (!app) {
+      alert('Please select a valid institution.');
+      return;
+    }
+    if (!visitDate) {
+      alert('Please select a valid inspection date.');
+      return;
+    }
+
+    const determinedCity = city.trim() || deriveCityFromApplication(app);
 
     const newVisit: EVCVisit = {
       id: `evc-${Date.now()}`,
@@ -50,7 +142,7 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       applicationNumber: app.applicationNumber,
       instituteName: app.instituteName,
       instituteCode: app.instituteCode,
-      city: app.state === 'Maharashtra' ? 'Mumbai' : app.state === 'Delhi' ? 'New Delhi' : 'Bangalore',
+      city: determinedCity,
       state: app.state,
       visitDate,
       visitTime,
@@ -66,6 +158,7 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
 
     onAddEVCVisit(newVisit);
     setShowScheduleModal(false);
+    onClearInitialSelectedApp?.();
   };
 
   return (
@@ -223,7 +316,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
               <h3 className="font-bold text-sm">Schedule Expert Visit Committee (EVC) Panel</h3>
               <button
                 type="button"
-                onClick={() => setShowScheduleModal(false)}
+                onClick={() => {
+                  setShowScheduleModal(false);
+                  onClearInitialSelectedApp?.();
+                }}
                 className="text-slate-300 hover:text-white"
               >
                 ✕
@@ -249,15 +345,28 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
-                    Inspection Date:
+                    Inspection Date <span className="text-rose-600">*</span>:
                   </label>
                   <input
                     type="date"
                     value={visitDate}
                     onChange={(e) => setVisitDate(e.target.value)}
+                    className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
+                    Inspection City:
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Derived from institute data"
                     className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
                     required
                   />
@@ -319,7 +428,10 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-gov-slate-200">
                 <button
                   type="button"
-                  onClick={() => setShowScheduleModal(false)}
+                  onClick={() => {
+                    setShowScheduleModal(false);
+                    onClearInitialSelectedApp?.();
+                  }}
                   className="px-3 py-1.5 border border-gov-slate-300 rounded text-xs font-semibold text-gov-slate-700 hover:bg-gov-slate-100"
                 >
                   Cancel

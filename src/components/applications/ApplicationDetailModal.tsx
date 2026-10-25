@@ -23,6 +23,7 @@ interface ApplicationDetailModalProps {
   onClose: () => void;
   onUpdateStage: (appId: string, newStage: ApplicationStage, remark: string) => Promise<{ success: boolean; error?: string } | void> | void;
   onScheduleEVCModal?: (app: Application) => void;
+  userRole?: string;
 }
 
 export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
@@ -30,14 +31,15 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   onClose,
   onUpdateStage,
   onScheduleEVCModal,
+  userRole = 'Regional Officer'
 }) => {
-  if (!application) return null;
-
-  const allowedTransitions = getAllowedTransitions(application.currentStage);
+  const allowedTransitions = application ? getAllowedTransitions(application.currentStage) : [];
   const isTerminal = allowedTransitions.length === 0;
 
   const [selectedStage, setSelectedStage] = useState<ApplicationStage>(() => {
-    return allowedTransitions.length > 0 ? allowedTransitions[0] : application.currentStage;
+    if (!application) return 'Submitted';
+    const transitions = getAllowedTransitions(application.currentStage);
+    return transitions.length > 0 ? transitions[0] : application.currentStage;
   });
   const [remarkInput, setRemarkInput] = useState<string>('');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -51,7 +53,9 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
       setActionSuccess(null);
       setActionError(null);
     }
-  }, [application.id, application.currentStage]);
+  }, [application?.id, application?.currentStage]);
+
+  if (!application) return null;
 
   const handleStageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,11 +284,22 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             </div>
           )}
 
-          {/* Regional Officer Action Workflow Form */}
+          {/* Action Workflow Form or Institutional Signatory Notice */}
+          {userRole === 'Institution' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-900 space-y-1">
+              <h4 className="font-bold text-gov-navy text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-gov-navy" />
+                Institutional Application Dossier View
+              </h4>
+              <p className="text-gov-slate-700">
+                This application is currently recorded at stage: <strong>{application.currentStage}</strong> ({application.stageProgress}% progress). Official stage transitions and committee allocations are processed by designated AICTE Scrutiny Officers and Regional Officers.
+              </p>
+            </div>
+          ) : (
           <form onSubmit={handleStageSubmit} className="bg-gov-slate-100 border border-gov-slate-300 rounded-lg p-4 space-y-3">
             <h4 className="font-bold text-gov-navy text-xs uppercase tracking-wider flex items-center gap-1.5">
               <Send className="w-3.5 h-3.5 text-gov-navy" />
-              Regional Officer Workflow Action
+              AICTE Officer Workflow Action ({userRole})
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -357,6 +372,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
               </div>
             </div>
           </form>
+          )}
         </div>
 
         {/* Modal Footer */}

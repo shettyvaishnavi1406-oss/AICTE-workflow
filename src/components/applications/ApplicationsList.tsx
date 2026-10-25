@@ -20,12 +20,14 @@ interface ApplicationsListProps {
   applications: Application[];
   onSelectApplication: (app: Application) => void;
   onScheduleEVCModal?: (app: Application) => void;
+  onOpenNewApplication?: () => void;
 }
 
 export const ApplicationsList: React.FC<ApplicationsListProps> = ({
   applications,
   onSelectApplication,
   onScheduleEVCModal,
+  onOpenNewApplication,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
@@ -89,6 +91,16 @@ export const ApplicationsList: React.FC<ApplicationsListProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onOpenNewApplication && (
+              <button
+                type="button"
+                onClick={onOpenNewApplication}
+                className="inline-flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 text-xs font-bold px-3.5 py-2 rounded shadow-sm border border-amber-400 transition-colors"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>New Application</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={exportCSV}
@@ -252,13 +264,27 @@ export const ApplicationsList: React.FC<ApplicationsListProps> = ({
               <span className="text-gov-slate-500 font-mono">
                 {app.documents.filter(d => d.verified).length}/{app.documents.length} Docs Verified
               </span>
-              <button
-                type="button"
-                className="font-bold text-gov-navy hover:text-gov-saffron-dark flex items-center gap-1"
-              >
-                <span>Open Dossier</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {onScheduleEVCModal && (app.currentStage === 'EVC Pending' || app.currentStage === 'Scrutiny Completed' || !app.evcAssigned) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onScheduleEVCModal(app);
+                    }}
+                    className="text-amber-700 hover:text-amber-800 font-semibold px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] transition-colors"
+                  >
+                    Schedule EVC
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="font-bold text-gov-navy hover:text-gov-saffron-dark flex items-center gap-1"
+                >
+                  <span>Open Dossier</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         ))}

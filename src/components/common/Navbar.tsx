@@ -10,10 +10,11 @@ import {
   Menu,
   X,
   Search,
-  ExternalLink
+  ExternalLink,
+  KeyRound
 } from 'lucide-react';
 
-export type NavTab = 'landing' | 'dashboard' | 'applications' | 'evc' | 'compliance' | 'reports' | 'audit';
+export type NavTab = 'landing' | 'dashboard' | 'applications' | 'evc' | 'compliance' | 'reports' | 'audit' | 'login';
 
 interface NavbarProps {
   activeTab: NavTab;
@@ -24,68 +25,73 @@ interface NavbarProps {
     pendingEVC: number;
     complianceAlerts: number;
   };
+  currentRole?: string;
+  isAuthenticated?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onTabChange,
   onOpenTrackModal,
-  counts
+  counts,
+  currentRole = 'Regional Officer',
+  isAuthenticated = true
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
+  const allNavItems = [
     {
       id: 'landing' as NavTab,
       label: 'Portal Home',
       icon: Home,
-      badge: null,
-      highlight: false
+      roles: ['All']
     },
     {
       id: 'dashboard' as NavTab,
-      label: 'Admin Dashboard',
+      label: currentRole === 'Institution' ? 'My Overview' : 'Admin Dashboard',
       icon: LayoutDashboard,
-      badge: null,
-      highlight: false
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'Institution']
     },
     {
       id: 'applications' as NavTab,
-      label: 'Applications',
+      label: currentRole === 'Institution' ? 'My Applications' : 'Applications',
       icon: FileText,
       badge: counts.applications > 0 ? counts.applications : null,
-      highlight: false
+      roles: ['All']
     },
     {
       id: 'evc' as NavTab,
       label: 'EVC Management',
       icon: CalendarClock,
       badge: counts.pendingEVC > 0 ? counts.pendingEVC : null,
-      highlight: false
+      roles: ['Regional Officer', 'EVC Member', 'Admin', 'Admin / Member Secretary']
     },
     {
       id: 'compliance' as NavTab,
-      label: 'Compliance',
+      label: currentRole === 'Institution' ? 'Compliance & Undertakings' : 'Compliance',
       icon: ShieldAlert,
       badge: counts.complianceAlerts > 0 ? counts.complianceAlerts : null,
-      badgeColor: 'bg-amber-500 text-white',
-      highlight: false
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary', 'Institution']
     },
     {
       id: 'reports' as NavTab,
       label: 'Reports',
       icon: ClipboardCheck,
-      badge: null,
-      highlight: false
+      roles: ['Regional Officer', 'Scrutiny Officer', 'Admin', 'Admin / Member Secretary']
     },
     {
       id: 'audit' as NavTab,
       label: 'Audit Log',
       icon: History,
-      badge: null,
-      highlight: false
+      roles: ['Regional Officer', 'Admin', 'Admin / Member Secretary']
     }
   ];
+
+  // Filter items visible for active role
+  const navItems = allNavItems.filter((item) => {
+    if (item.roles.includes('All')) return true;
+    return item.roles.some((r) => currentRole.includes(r));
+  });
 
   return (
     <nav className="bg-gov-navy text-white shadow-md border-b-2 border-gov-saffron sticky top-0 z-40">
@@ -101,19 +107,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   key={item.id}
                   type="button"
                   onClick={() => onTabChange(item.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 ${isActive
-                    ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
-                    : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
-                    }`}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium rounded-t transition-all duration-150 border-b-2 cursor-pointer ${
+                    isActive
+                      ? 'bg-gov-navy-light text-amber-300 border-gov-saffron shadow-inner font-semibold'
+                      : 'text-slate-200 hover:text-white hover:bg-gov-navy-hover border-transparent'
+                  }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-amber-300' : 'text-slate-300'}`} />
                   <span>{item.label}</span>
-                  {/* {item.badge !== null && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full leading-tight ${item.badgeColor || 'bg-blue-600 text-white'
-                      }`}>
-                      {item.badge}
-                    </span>
-                  )} */}
                 </button>
               );
             })}
@@ -124,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onOpenTrackModal}
-              className="flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-900 font-semibold text-xs px-3.5 py-1.5 rounded shadow transition-colors border border-amber-400"
+              className="flex items-center gap-1.5 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-900 font-semibold text-xs px-3.5 py-1.5 rounded shadow transition-colors border border-amber-400 cursor-pointer"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Track Application</span>
@@ -133,20 +134,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             {activeTab === 'landing' ? (
               <button
                 type="button"
-                onClick={() => onTabChange('dashboard')}
-                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded transition-colors border border-white/20"
+                onClick={() => onTabChange(currentRole === 'Institution' ? 'applications' : 'dashboard')}
+                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded transition-colors border border-white/20 cursor-pointer"
               >
-                <span>Go to Dashboard</span>
+                <span>{currentRole === 'Institution' ? 'My Applications' : 'Go to Dashboard'}</span>
                 <ExternalLink className="w-3 h-3" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => onTabChange('landing')}
-                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded transition-colors border border-white/20"
+                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded transition-colors border border-white/20 cursor-pointer"
               >
                 <Home className="w-3 h-3" />
                 <span>Portal Home</span>
+              </button>
+            )}
+
+            {!isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => onTabChange('login')}
+                className="flex items-center gap-1 bg-amber-400 hover:bg-amber-300 text-gov-navy font-bold text-xs px-3 py-1.5 rounded transition-colors shadow-sm cursor-pointer"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Sign In</span>
               </button>
             )}
           </div>
@@ -154,9 +166,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Mobile hamburger menu */}
           <div className="flex lg:hidden items-center justify-between w-full sm:w-auto py-2">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm tracking-wide text-amber-300">AICTE Workflow</span>
+              <span className="font-bold text-sm tracking-wide text-amber-300">AICTE SARAL</span>
               <span className="text-xs bg-gov-navy-light px-2 py-0.5 rounded text-slate-300">
-                {navItems.find((n) => n.id === activeTab)?.label}
+                {currentRole}
               </span>
             </div>
 
@@ -195,20 +207,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onTabChange(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium ${isActive
-                    ? 'bg-gov-navy-light text-amber-300 font-semibold'
-                    : 'text-slate-200 hover:bg-gov-navy-hover'
-                    }`}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded text-xs font-medium cursor-pointer ${
+                    isActive
+                      ? 'bg-gov-navy-light text-amber-300 font-semibold'
+                      : 'text-slate-200 hover:bg-gov-navy-hover'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
                   </div>
-                  {item.badge !== null && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                      {item.badge}
-                    </span>
-                  )}
                 </button>
               );
             })}

@@ -626,5 +626,156 @@ export const dataService = {
         console.warn('Supabase audit log insert error:', err);
       }
     }
+  },
+
+  /**
+   * Save a newly submitted application to Supabase or fallback store.
+   * Honest persistence - never fakes success.
+   */
+  async createApplication(app: Application): Promise<{ success: boolean; data?: Application; error?: string }> {
+    if (!app.instituteName || !app.instituteCode || !app.applicationNumber) {
+      return { success: false, error: 'Mandatory application details are required.' };
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const row: SupabaseApplicationRow = {
+          id: app.id,
+          application_number: app.applicationNumber,
+          institute_name: app.instituteName,
+          institute_code: app.instituteCode,
+          state: app.state,
+          region: app.region,
+          application_type: app.applicationType,
+          academic_year: app.academicYear,
+          submission_date: app.submissionDate,
+          current_stage: app.currentStage,
+          stage_progress: app.stageProgress,
+          processing_days: app.processingDays,
+          is_overdue: app.isOverdue,
+          evc_assigned: app.evcAssigned,
+          fee_paid: app.feePaid,
+          total_intake_proposed: app.totalIntakeProposed,
+          compliance_rating: app.complianceRating,
+          contact_person: app.contactPerson,
+          contact_email: app.contactEmail,
+          contact_phone: app.contactPhone,
+          remarks: app.remarks || undefined,
+          documents: app.documents
+        };
+
+        const { data, error } = await supabase
+          .from('applications')
+          .insert(row)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Supabase application creation failed:', error);
+          return { success: false, error: `Database insert failed: ${error.message}` };
+        }
+
+        const mapped = mapApplicationRow(data as SupabaseApplicationRow);
+        const stored = getStoredApplications();
+        saveStoredApplications([mapped, ...stored.filter(a => a.id !== mapped.id)]);
+
+        return { success: true, data: mapped };
+      } catch (err: any) {
+        console.error('Error during Supabase application creation:', err);
+        return { success: false, error: err?.message || 'Unexpected server error while persisting application.' };
+      }
+    }
+
+    // Local sandbox fallback
+    try {
+      const stored = getStoredApplications();
+      saveStoredApplications([app, ...stored.filter(a => a.id !== app.id)]);
+      return { success: true, data: app };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to save to local sandbox storage.' };
+    }
+  },
+
+  /**
+   * Upload an application document to configured Supabase Storage bucket.
+   * Includes file type & size validation. Returns storage reference or honest error.
+   */
+  async uploadDocument(
+    file: File,
+    applicationId: string
+  ): Promise<{ success: boolean; name: string; url?: string; error?: string }> {
+    // 1. File size validation (Max 5MB)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        name: file.name,
+        error: `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds statutory maximum of 5MB.`
+      };
+    }
+
+    // 2. File type validation (PDF, JPG, PNG)
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+    const fileName = file.name.toLowerCase();
+    const hasAllowedExt = allowedExtensions.some(ext => fileName.endsWith(ext));
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    const hasAllowedMime = !file.type || allowedMimeTypes.includes(file.type.toLowerCase());
+
+    if (!hasAllowedExt || !hasAllowedMime) {
+      return {
+        success: false,
+        name: file.name,
+        error: `Invalid file format. Only PDF, JPG, and PNG documents are accepted for statutory verification.`
+      };
+    }
+
+    // 3. Attempt Supabase Storage upload if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const bucketName = 'documents';
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `applications/${applicationId}/${Date.now()}_${sanitizedFileName}`;
+
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (error) {
+          console.warn('Supabase storage upload note:', error.message);
+          return {
+            success: false,
+            name: file.name,
+            error: `Storage bucket "${bucketName}" returned: ${error.message}`
+          };
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(storagePath);
+
+        return {
+          success: true,
+          name: file.name,
+          url: publicUrlData?.publicUrl || storagePath
+        };
+      } catch (err: any) {
+        console.warn('Storage upload exception:', err);
+        return {
+          success: false,
+          name: file.name,
+          error: err?.message || 'Storage service unreachable.'
+        };
+      }
+    }
+
+    // Local / fallback reference
+    return {
+      success: true,
+      name: file.name,
+      url: typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : undefined
+    };
   }
 };

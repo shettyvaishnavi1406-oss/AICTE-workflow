@@ -15,7 +15,9 @@ import {
   Award,
   ChevronRight,
   ExternalLink,
-  BookOpen
+  BookOpen,
+  PlusCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { Application, EVCVisit, ComplianceRecord } from '../../types';
 
@@ -25,6 +27,8 @@ interface LandingPageProps {
   onViewCompliance: () => void;
   onViewApplications: () => void;
   onViewEVC: () => void;
+  onOpenNewApplication?: () => void;
+  onOpenLogin?: () => void;
   applications: Application[];
   evcVisits: EVCVisit[];
   complianceRecords: ComplianceRecord[];
@@ -36,6 +40,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onViewCompliance,
   onViewApplications,
   onViewEVC,
+  onOpenNewApplication,
+  onOpenLogin,
   applications,
   evcVisits,
   complianceRecords,
@@ -59,21 +65,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-gov-slate-50 text-gov-slate-900">
-      {/* Notice Banner
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-900">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-gov-saffron-dark flex-shrink-0" />
-            <span>
-              <strong>Demonstration Prototype:</strong> AICTE SARAL Approval, Scrutiny & Expert Visit Committee Management System (Cycle 2026-27). All sample records are loaded in local sandbox mode.
-            </span>
-          </div>
-          <span className="hidden md:inline-block font-mono text-[11px] bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded font-semibold">
-            Member 1 Verified
-          </span>
-        </div>
-      </div> */}
-
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-white to-gov-slate-100 border-b border-gov-slate-200 pt-10 pb-14 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -81,11 +72,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             {/* Left Hero Content */}
             <div className="lg:col-span-7 space-y-5">
-              {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-gov-navy border border-blue-200">
-                <Scale className="w-3.5 h-3.5 text-gov-navy" />
-                <span>Statutory AICTE Approval Process 2026-27</span>
-              </div> */}
-
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gov-navy tracking-tight leading-tight">
                 AICTE Approval &amp; Compliance Portal
               </h1>
@@ -99,20 +85,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <button
                   type="button"
                   onClick={onOpenDashboard}
-                  className="inline-flex items-center gap-2 bg-gov-navy hover:bg-gov-navy-light text-white font-semibold text-sm px-6 py-3 rounded-md shadow-md transition-all border border-gov-navy-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-navy"
+                  className="inline-flex items-center gap-2 bg-gov-navy hover:bg-gov-navy-light text-white font-semibold text-sm px-6 py-3 rounded-md shadow-md transition-all border border-gov-navy-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gov-navy cursor-pointer"
                 >
                   <span>Open Dashboard</span>
                   <ArrowRight className="w-4 h-4 text-amber-400" />
                 </button>
 
+                {onOpenNewApplication && (
+                  <button
+                    type="button"
+                    onClick={onOpenNewApplication}
+                    className="inline-flex items-center gap-2 bg-gov-saffron hover:bg-gov-saffron-dark text-slate-950 font-bold text-sm px-5 py-3 rounded-md border border-amber-400 shadow-sm transition-colors cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4 text-slate-950" />
+                    <span>Apply for AICTE Approval</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => onOpenTrackModal()}
-                  className="inline-flex items-center gap-2 bg-white hover:bg-gov-slate-50 text-gov-navy font-semibold text-sm px-5 py-3 rounded-md border border-gov-slate-300 shadow-sm transition-colors hover:border-gov-navy"
+                  className="inline-flex items-center gap-2 bg-white hover:bg-gov-slate-50 text-gov-navy font-semibold text-sm px-5 py-3 rounded-md border border-gov-slate-300 shadow-sm transition-colors hover:border-gov-navy cursor-pointer"
                 >
                   <Search className="w-4 h-4 text-gov-saffron-dark" />
                   <span>Track Application</span>
                 </button>
+
+                {onOpenLogin && (
+                  <button
+                    type="button"
+                    onClick={onOpenLogin}
+                    className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-gov-navy font-semibold text-sm px-5 py-3 rounded-md border border-blue-200 shadow-sm transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-gov-navy" />
+                    <span>Role Login</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
