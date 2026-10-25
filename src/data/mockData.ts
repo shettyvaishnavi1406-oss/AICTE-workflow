@@ -458,6 +458,54 @@ export const INITIAL_EXPERTS: ExpertProfile[] = [
     completedVisits: 45,
     status: 'Available',
     rating: 4.9
+  },
+  {
+    id: 'exp-5',
+    name: 'Dr. Ramesh K. Narayanan',
+    designation: 'Professor & Dean of Research',
+    institution: 'PSG College of Technology',
+    discipline: 'Computer Science & AI',
+    city: 'Coimbatore',
+    state: 'Tamil Nadu',
+    completedVisits: 14,
+    status: 'Available',
+    rating: 4.8
+  },
+  {
+    id: 'exp-6',
+    name: 'Dr. Meera Sen',
+    designation: 'Associate Professor',
+    institution: 'National Institute of Pharmaceutical Education and Research',
+    discipline: 'Pharmaceutical Sciences',
+    city: 'Kolkata',
+    state: 'West Bengal',
+    completedVisits: 11,
+    status: 'Available',
+    rating: 4.6
+  },
+  {
+    id: 'exp-7',
+    name: 'Prof. Vikram H. Joshi',
+    designation: 'Senior Professor of Mechanical',
+    institution: 'National Institute of Technology Karnataka (NITK)',
+    discipline: 'Mechanical & Automation Engineering',
+    city: 'Surathkal',
+    state: 'Karnataka',
+    completedVisits: 22,
+    status: 'Available',
+    rating: 4.85
+  },
+  {
+    id: 'exp-8',
+    name: 'Dr. Ananya Ray',
+    designation: 'Professor of Civil Engineering',
+    institution: 'Maulana Azad National Institute of Technology',
+    discipline: 'Civil & Environmental Engineering',
+    city: 'Bhopal',
+    state: 'Madhya Pradesh',
+    completedVisits: 16,
+    status: 'Available',
+    rating: 4.75
   }
 ];
 
