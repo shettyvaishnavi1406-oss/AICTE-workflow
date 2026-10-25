@@ -48,6 +48,9 @@ export interface Application {
   contactEmail: string;
   contactPhone: string;
   remarks?: string;
+  assignedDate?: string;
+  processingPath?: 'Scrutiny + EVC' | 'Only EVC' | 'EVC + SAC/SHC' | 'Scrutiny + EVC + SAC/SHC';
+  evcDeadlineDate?: string;
 }
 
 export interface EVCVisit {
@@ -69,6 +72,8 @@ export interface EVCVisit {
   instructions: string;
   inspectionReportUrl?: string;
   criticalFindings?: string;
+  assignedDate?: string;
+  deadlineDate?: string;
 }
 
 export interface ComplianceRecord {
@@ -199,3 +204,71 @@ export interface EscalationEngineSummary {
   timestamp: string;
 }
 
+export type EVCAssignmentStatus = 'Upcoming' | 'Pending' | 'Report Due' | 'Overdue' | 'Completed';
+
+export interface EVCAssignedApplication {
+  id: string;
+  applicationNumber: string;
+  instituteName: string;
+  instituteCode: string;
+  region: 'Northern' | 'Western' | 'Eastern' | 'Southern' | 'South-Western' | 'Central';
+  state: string;
+  applicationType: ApplicationType;
+  processingPath: 'Scrutiny + EVC' | 'Only EVC' | 'EVC + SAC/SHC' | 'Fast-track EoA';
+  assignedDate: string;
+  visitDate: string;
+  visitTime: string;
+  visitMode: 'Physical On-Site' | 'Virtual Video EVC';
+  ageingDays: number;
+  prescribedDeadline: string;
+  daysRemaining: number;
+  status: EVCAssignmentStatus;
+  evcVisitId: string;
+  visitCode: string;
+  chairman: string;
+  experts: string[];
+  convenor: string;
+  meetingLink?: string;
+  instructions?: string;
+  criticalFindings?: string;
+  scrutinyObservations?: string;
+  documents?: {
+    name: string;
+    verified: boolean;
+    dateUploaded: string;
+  }[];
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  totalIntakeProposed?: number;
+}
+
+export interface EVCAssignmentsSummary {
+  totalAssigned: number;
+  upcoming: number;
+  pending: number;
+  reportDue: number;
+  overdue: number;
+  completed: number;
+}
+
+export interface EVCAssignmentsQueryParams {
+  status?: string;
+  region?: string;
+  applicationType?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  sortBy?: 'deadline' | 'assignedDate' | 'ageing';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedEVCAssignments {
+  data: EVCAssignedApplication[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}

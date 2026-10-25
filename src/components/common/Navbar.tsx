@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     {
       id: 'evc' as NavTab,
-      label: 'EVC Management',
+      label: currentRole === 'EVC Member' ? 'My Assigned Applications' : 'EVC Management',
       icon: CalendarClock,
       badge: counts.pendingEVC > 0 ? counts.pendingEVC : null,
       roles: ['Regional Officer', 'EVC Member', 'Admin', 'Admin / Member Secretary']
