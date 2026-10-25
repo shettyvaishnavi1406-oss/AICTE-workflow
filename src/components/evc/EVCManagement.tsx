@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CalendarClock,
   Video,
@@ -11,9 +11,12 @@ import {
   FileCheck2,
   Users,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { EVCVisit, ExpertProfile, Application } from '../../types';
+import { suggestEvcTeam, validateTeam, ValidationWarning } from '../../lib/evcTeam';
+import { saveStoredExperts } from '../../data/mockData';
 
 interface EVCManagementProps {
   evcVisits: EVCVisit[];
@@ -97,8 +100,38 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
   const [visitTime, setVisitTime] = useState('10:00 AM IST');
   const [visitMode, setVisitMode] = useState<'Physical On-Site' | 'Virtual Video EVC'>('Virtual Video EVC');
   const [selectedChairman, setSelectedChairman] = useState(experts[0]?.name || '');
-  const [selectedExpert, setSelectedExpert] = useState(experts[1]?.name || '');
+  const [selectedExpert1, setSelectedExpert1] = useState(experts[1]?.name || '');
+  const [selectedExpert2, setSelectedExpert2] = useState(experts[2]?.name || '');
+  const [suggestReasons, setSuggestReasons] = useState<string[]>([]);
   const [instructions, setInstructions] = useState('Mandatory live verification of server room, labs, and faculty attendance.');
+
+  const currentApp = applications.find(a => a.id === selectedAppId);
+
+  const teamWarnings = useMemo(() => {
+    if (!currentApp) return [];
+    return validateTeam(
+      { chairman: selectedChairman, members: [selectedExpert1, selectedExpert2].filter(Boolean) },
+      currentApp,
+      experts,
+      evcVisits,
+      visitDate
+    );
+  }, [selectedChairman, selectedExpert1, selectedExpert2, currentApp, experts, evcVisits, visitDate]);
+
+  const handleAutoSuggest = () => {
+    if (!currentApp) return;
+    const suggestion = suggestEvcTeam(currentApp, experts, evcVisits, visitDate);
+    if (suggestion.chairman) {
+      setSelectedChairman(suggestion.chairman.name);
+    }
+    if (suggestion.members[0]) {
+      setSelectedExpert1(suggestion.members[0].name);
+    }
+    if (suggestion.members[1]) {
+      setSelectedExpert2(suggestion.members[1].name);
+    }
+    setSuggestReasons(suggestion.reasons);
+  };
 
   // Preselect application and auto-open modal if triggered from an entry point
   React.useEffect(() => {
@@ -134,7 +167,22 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       return;
     }
 
+    const blockingErrors = teamWarnings.filter(w => w.severity === 'error');
+    if (blockingErrors.length > 0) {
+      alert('Cannot schedule EVC Panel due to errors:\n' + blockingErrors.map(w => '• ' + w.message).join('\n'));
+      return;
+    }
+
+    const softWarnings = teamWarnings.filter(w => w.severity === 'warning');
+    if (softWarnings.length > 0) {
+      const confirmed = window.confirm(
+        'Warning:\n' + softWarnings.map(w => '• ' + w.message).join('\n') + '\n\nDo you want to proceed with this team configuration?'
+      );
+      if (!confirmed) return;
+    }
+
     const determinedCity = city.trim() || deriveCityFromApplication(app);
+    const chosenExperts = [selectedExpert1, selectedExpert2].filter(Boolean);
 
     const newVisit: EVCVisit = {
       id: `evc-${Date.now()}`,
@@ -149,15 +197,26 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
       visitMode,
       status: 'Scheduled',
       chairman: selectedChairman,
-      experts: [selectedExpert],
+      experts: chosenExperts,
       convenor: 'Shri R. K. Verma (Assistant Director AICTE)',
       meetingLink: visitMode === 'Virtual Video EVC' ? `https://evc-meet.aicte-india.org/room/${app.instituteCode.toLowerCase()}` : undefined,
       instructions,
       criticalFindings: 'Committee officially constituted.'
     };
 
+    // Rule 3: Set chosen experts' status to 'Assigned' in local storage
+    const allAssigned = [selectedChairman, ...chosenExperts];
+    const updatedExperts = experts.map(exp => {
+      if (allAssigned.some(name => exp.name === name || name.includes(exp.name))) {
+        return { ...exp, status: 'Assigned' as const };
+      }
+      return exp;
+    });
+    saveStoredExperts(updatedExperts);
+
     onAddEVCVisit(newVisit);
     setShowScheduleModal(false);
+    setSuggestReasons([]);
     onClearInitialSelectedApp?.();
   };
 
@@ -386,31 +445,108 @@ export const EVCManagement: React.FC<EVCManagementProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
-                    Committee Chairman:
-                  </label>
-                  <select
-                    value={selectedChairman}
-                    onChange={(e) => setSelectedChairman(e.target.value)}
-                    className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gov-navy">EVC Committee Panel:</span>
+                  <button
+                    type="button"
+                    onClick={handleAutoSuggest}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gov-navy bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded border border-amber-300 transition-colors cursor-pointer"
                   >
-                    {experts.map(e => <option key={e.id} value={e.name}>{e.name} ({e.institution.slice(0, 15)}...)</option>)}
-                  </select>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Auto-suggest team</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
-                    Subject Expert:
-                  </label>
-                  <select
-                    value={selectedExpert}
-                    onChange={(e) => setSelectedExpert(e.target.value)}
-                    className="w-full bg-white border border-gov-slate-300 rounded px-3 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
-                  >
-                    {experts.map(e => <option key={e.id} value={e.name}>{e.name} ({e.discipline})</option>)}
-                  </select>
+
+                {suggestReasons.length > 0 && (
+                  <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded text-[11px] text-amber-950 space-y-1">
+                    <div className="font-bold flex items-center gap-1 text-amber-900">
+                      <Sparkles className="w-3 h-3 text-amber-600" />
+                      <span>Auto-suggested Panel Rationale:</span>
+                    </div>
+                    {suggestReasons.map((r, i) => (
+                      <div key={i}>• {r}</div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
+                      Committee Chairman <span className="text-rose-600">*</span>:
+                    </label>
+                    <select
+                      value={selectedChairman}
+                      onChange={(e) => setSelectedChairman(e.target.value)}
+                      className="w-full bg-white border border-gov-slate-300 rounded px-2.5 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+                      required
+                    >
+                      <option value="">-- Select Chairman --</option>
+                      {experts.map(e => (
+                        <option key={e.id} value={e.name}>
+                          {e.name} ({e.state} • ★ {e.rating})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
+                      Subject Expert 1 <span className="text-rose-600">*</span>:
+                    </label>
+                    <select
+                      value={selectedExpert1}
+                      onChange={(e) => setSelectedExpert1(e.target.value)}
+                      className="w-full bg-white border border-gov-slate-300 rounded px-2.5 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+                      required
+                    >
+                      <option value="">-- Select Expert 1 --</option>
+                      {experts.map(e => (
+                        <option key={e.id} value={e.name}>
+                          {e.name} ({e.discipline} • {e.state})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gov-slate-700 mb-1">
+                      Subject Expert 2 <span className="text-rose-600">*</span>:
+                    </label>
+                    <select
+                      value={selectedExpert2}
+                      onChange={(e) => setSelectedExpert2(e.target.value)}
+                      className="w-full bg-white border border-gov-slate-300 rounded px-2.5 py-1.5 text-xs text-gov-slate-900 focus:outline-none focus:ring-1 focus:ring-gov-navy"
+                      required
+                    >
+                      <option value="">-- Select Expert 2 --</option>
+                      {experts.map(e => (
+                        <option key={e.id} value={e.name}>
+                          {e.name} ({e.discipline} • {e.state})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Live validation warnings */}
+                {teamWarnings.length > 0 && (
+                  <div className="space-y-1 pt-1">
+                    {teamWarnings.map((w, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-start gap-1.5 p-2 rounded text-[11px] ${
+                          w.severity === 'error'
+                            ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                            : 'bg-amber-50 border border-amber-200 text-amber-800'
+                        }`}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>{w.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
