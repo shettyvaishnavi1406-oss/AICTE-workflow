@@ -123,8 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const saved = localStorage.getItem(LOCAL_STORAGE_ACTIVE_PROFILE);
       if (saved) return JSON.parse(saved);
     } catch {}
-    // Default initial profile for prototype evaluation is Regional Officer
-    return DEMO_PROFILES['Regional Officer'];
+    return null;
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -414,9 +413,9 @@ export const useAuth = (): AuthContextType => {
     return {
       user: null,
       session: null,
-      profile: DEMO_PROFILES['Regional Officer'],
-      currentRole: 'Regional Officer',
-      isAuthenticated: true,
+      profile: null,
+      currentRole: 'Guest',
+      isAuthenticated: false,
       isLoading: false,
       authMode: 'prototype',
       signIn: async () => ({ success: true }),
